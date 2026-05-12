@@ -1,15 +1,16 @@
-const allNames = ["ماري","بيتر","جورج","مايكل","أندرو","مارك","جون","بول","توماس","فيليب","برثولماوس","متى","سمعان","يعقوب","يوحنا","اندرواس","فيلبس","توما","متى","admin1","admin2","admin3"];
+// ---------- 19 اسم + 3 أدمن (بالعربي) ----------
+const allNames = ["ماريو","بيتر","جورج","مايكل","أندرو","مارك","جون","بول","توماس","فيليب","برثولماوس","متى","سمعان","يعقوب","يوحنا","اندرواس","فيلبس","توما","متى","أدمن1","أدمن2","أدمن3"];
 
 let admins = [
-    { username: "admin1", password: "admin123" },
-    { username: "admin2", password: "admin123" },
-    { username: "admin3", password: "admin123" }
+    { username: "أدمن1", password: "admin123" },
+    { username: "أدمن2", password: "admin123" },
+    { username: "أدمن3", password: "admin123" }
 ];
 
 const savedAdmins = localStorage.getItem('customAdmins');
 if(savedAdmins) {
     const parsed = JSON.parse(savedAdmins);
-    if(parsed.find(a=>a.username==='admin1')) admins = parsed;
+    if(parsed.find(a=>a.username==='أدمن1')) admins = parsed;
 }
 
 const MONTHS_COUNT = 12;
@@ -150,7 +151,7 @@ function showMemberList() {
 
 function openMemberDashboard(name) {
     currentMember = name; currentMonth=0;
-    const isAdmin = name.includes('أدمن');
+    const isAdmin = name === 'أدمن1' || name === 'أدمن2' || name === 'أدمن3';
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('memberDashboard').classList.remove('hidden');
     document.getElementById('memberName').innerText = name;
@@ -300,7 +301,7 @@ function showChangePasswordDialog() {
     dialog.innerHTML = `
         <div class="dialog-content">
             <h3>🔒 تغيير كلمة المرور</h3>
-            <p style="font-size:14px">متاح فقط لـ <strong>admin1</strong></p>
+            <p style="font-size:14px">متاح فقط لـ <strong>أدمن1</strong></p>
             <input type="password" id="currentPass" placeholder="كلمة المرور الحالية">
             <input type="password" id="newPass" placeholder="كلمة المرور الجديدة">
             <input type="password" id="confirmNewPass" placeholder="تأكيد كلمة المرور">
@@ -320,7 +321,7 @@ window.changeAdminPasswordTemp = function() {
     const current = document.getElementById('currentPass').value;
     const newPass = document.getElementById('newPass').value;
     const confirm = document.getElementById('confirmNewPass').value;
-    const admin1 = admins.find(a=>a.username==='admin1');
+    const admin1 = admins.find(a=>a.username==='أدمن1');
     if(!admin1 || admin1.password !== current) return alert('⚠️ كلمة المرور الحالية غير صحيحة');
     if(newPass !== confirm) return alert('⚠️ كلمة المرور الجديدة غير متطابقة');
     admin1.password = newPass;
