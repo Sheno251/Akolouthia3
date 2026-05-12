@@ -4,20 +4,38 @@ const allNames = [
     "هاله عادل", "دميانه سمعان", "فام روماني",",ويصا مرزق","ماري هاني ","مينا فام","فيولا طلعت"  // 3 أدمن
 ];
 
+
+
 let admins = [
     { username: "admin1", password: "admin123" },
     { username: "admin2", password: "admin123" },
     { username: "admin3", password: "admin123" }
 ];
 
-// تحميل كلمات المرور المحفوظة
 const savedAdmins = localStorage.getItem('customAdmins');
 if(savedAdmins) {
     const parsed = JSON.parse(savedAdmins);
     if(parsed.find(a=>a.username==='admin1')) admins = parsed;
 }
 
-// تحميل الموعد الرسمي المحفوظ
+const MONTHS_COUNT = 12;
+let currentMember = null, currentMonth = 0, currentFilter = 'monthly';
+let attendanceCache = [];
+let dataLoaded = false;
+
+// ---------- تحميل البيانات مرة واحدة ----------
+async function loadDataOnce() {
+    if(dataLoaded) return { attendance: attendanceCache };
+    try {
+        const res = await fetch(SCRIPT_URL);
+        const json = await res.json();
+        if(json.attendance) attendanceCache = json.attendance;
+        dataLoaded = true;
+        return json;
+    } catch(e) { console.error(e); return { attendance: [] }; }
+}
+
+// ---------- الموعد الرسمي ----------
 function getOfficialTime() {
     let time = localStorage.getItem('officialTime');
     if (!time) {
@@ -27,7 +45,7 @@ function getOfficialTime() {
     return time;
 }
 
-function updateOfficialTime() {
+window.updateOfficialTime = function() {
     const newTime = document.getElementById('newOfficialTime').value;
     if (!newTime) return alert('اختر الوقت أولاً');
     localStorage.setItem('officialTime', newTime);
@@ -45,36 +63,7 @@ function calculateLateMinutes() {
     return lateMinutes > 0 ? lateMinutes : 0;
 }
 
-const MONTHS_COUNT = 12;
-let currentMember = null, currentMonth = 0, currentFilter = 'monthly';
-let attendanceCache = [];
-
-// حالة الزر للعرض (بيانات وهمية)
-const statusText = {
-    'present': '✅ حاضر',
-    'late': '⏰ متأخر',
-    'absent': '❌ غائب بدون عذر',
-    'excused': '📝 غائب بعذر',
-    'travel': '✈️ مسافر'
-};
-
-// ---------- Google Sheets API ----------
-async function loadData() {
-    try {
-        const res = await fetch(SCRIPT_URL);
-        const json = await res.json();
-        if(json.attendance) attendanceCache = json.attendance;
-        return json;
-    } catch(e) { console.error(e); return { attendance: [] }; }
-}
-
-async function saveAttendance(record) {
-    try {
-        await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
-        console.log("تم الحفظ:", record);
-    } catch(e) { console.error(e); }
-}
-
+// ---------- دوال البيانات ----------
 function getMemberRecords(name, month, filter='monthly') {
     let records = attendanceCache.filter(r => r[0]===name && r[1]==month+1);
     if(filter==='weekly'){
@@ -88,8 +77,7 @@ function getMemberRecords(name, month, filter='monthly') {
     return records;
 }
 
-async function calcStats(name, month, filter='monthly') {
-    await loadData();
+function calcStats(name, month, filter='monthly') {
     const recs = getMemberRecords(name, month, filter);
     let present=0, late=0, excused=0, absent=0, travel=0;
     let lateMins=0;
@@ -102,7 +90,7 @@ async function calcStats(name, month, filter='monthly') {
         else if(st==='travel') travel++;
     });
     const total = recs.length;
-    const totalPresent = present + late; // حضور (حاضر + متأخر)
+    const totalPresent = present + late;
     return {
         presentRate: total ? Math.round(totalPresent/total*100) : 0,
         excusedRate: total ? Math.round(excused/total*100) : 0,
@@ -112,8 +100,15 @@ async function calcStats(name, month, filter='monthly') {
     };
 }
 
-// ---------- تسجيل الحضور والغياب ----------
-async function recordStatus(status) {
+async function saveAttendance(record) {
+    try {
+        await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
+        attendanceCache.push(record);
+    } catch(e) { console.error(e); }
+}
+
+// ---------- تسجيل الحضور ----------
+window.recordStatus = async function(status) {
     if(!currentMember) return;
     const now = new Date();
     let lateMinutes = 0;
@@ -121,7 +116,6 @@ async function recordStatus(status) {
     
     if(status === 'late') {
         lateMinutes = calculateLateMinutes();
-        actualTime = now.toLocaleTimeString('ar-EG');
     }
     
     const record = [
@@ -137,11 +131,11 @@ async function recordStatus(status) {
     if(!document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
 }
 
-async function recordLateAuto() {
+window.recordLateAuto = async function() {
     await recordStatus('late');
 }
 
-// ---------- واجهة العضو (إخفاء الأزرار للأعضاء العاديين) ----------
+// ---------- واجهة العضو ----------
 function showMemberList() {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('memberScreen').classList.remove('hidden');
@@ -169,7 +163,8 @@ function openMemberDashboard(name) {
 }
 
 async function updateMemberView() {
-    const stats = await calcStats(currentMember, currentMonth);
+    await loadDataOnce();
+    const stats = calcStats(currentMember, currentMonth);
     const records = getMemberRecords(currentMember, currentMonth);
     const last = records[records.length-1];
     const statusDiv = document.getElementById('currentStatus');
@@ -211,13 +206,13 @@ function renderTabs(containerId, isMember=true){
     }
 }
 
-// ---------- الأدمن --------------------
+// ---------- الأدمن ----------
 function showAdminLogin() {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('adminLoginScreen').classList.remove('hidden');
 }
 
-function verifyAdmin() {
+window.verifyAdmin = function() {
     const user = document.getElementById('adminUsername').value;
     const pass = document.getElementById('adminPassword').value;
     const found = admins.find(a=>a.username===user && a.password===pass);
@@ -226,12 +221,12 @@ function verifyAdmin() {
     } else alert('بيانات دخول خاطئة');
 }
 
-function showAdminDashboard(){
+async function showAdminDashboard(){
+    await loadDataOnce();
     currentMember = null;
     currentMonth=0; currentFilter='monthly';
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('adminDashboard').classList.remove('hidden');
-    // عرض الموعد الرسمي الحالي
     document.getElementById('currentOfficialTime').innerText = getOfficialTime();
     document.getElementById('newOfficialTime').value = getOfficialTime();
     renderTabs('adminMonthsTabs', false);
@@ -240,15 +235,14 @@ function showAdminDashboard(){
     updateAdminView();
 }
 
-function editMemberFromAdmin(memberName) {
+window.editMemberFromAdmin = function(memberName) {
     openMemberDashboard(memberName);
 }
 
 async function updateAdminView(){
-    await loadData();
     const stats = [];
     for(let name of allNames){
-        stats.push(await calcStats(name, currentMonth, currentFilter));
+        stats.push(calcStats(name, currentMonth, currentFilter));
     }
     const bestIdx = stats.reduce((iMax, x, i, arr)=> x.presentRate > arr[iMax].presentRate ? i : iMax, 0);
     const worstIdx = stats.reduce((iMax, x, i, arr)=> x.absentRate > arr[iMax].absentRate ? i : iMax, 0);
@@ -300,7 +294,7 @@ document.addEventListener('click', (e)=>{
     if(e.target.id === 'downloadPDFBtn') downloadPDF();
 });
 
-// ---------- تغيير كلمة المرور (لأدمن1 فقط) ----------
+// ---------- تغيير كلمة المرور ----------
 function showChangePasswordDialog() {
     const dialog = document.createElement('div');
     dialog.className = 'dialog';
@@ -324,7 +318,7 @@ function closeTempDialog() {
     if(dialog) dialog.remove();
 }
 
-function changeAdminPasswordTemp() {
+window.changeAdminPasswordTemp = function() {
     const current = document.getElementById('currentPass').value;
     const newPass = document.getElementById('newPass').value;
     const confirm = document.getElementById('confirmNewPass').value;
@@ -337,10 +331,10 @@ function changeAdminPasswordTemp() {
     closeTempDialog();
 }
 
-// ---------- PDF وطباعة ----------
+// ---------- PDF ----------
 function downloadPDF() {
     const element = document.getElementById('pdf-content');
-    if(element) {
+    if(element && typeof html2pdf !== 'undefined') {
         html2pdf().set({
             margin: 10,
             filename: `تقرير_${currentFilter==='monthly'?`شهر_${currentMonth+1}`:'اسبوعي'}.pdf`,
@@ -348,12 +342,17 @@ function downloadPDF() {
             html2canvas: { scale: 2 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
         }).from(element).save();
+    } else {
+        alert('مكتبة PDF لم يتم تحميلها بعد، حاول مرة أخرى');
     }
 }
 
-// ---------- الرجوع للصفحة الرئيسية ----------
+// ---------- دوال الرجوع ----------
 function backToLogin() {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('loginScreen').classList.remove('hidden');
 }
 function backToMemberList() { showMemberList(); }
+
+// تحميل البيانات أول ما الموقع يفتح
+loadDataOnce();
