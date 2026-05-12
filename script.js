@@ -233,7 +233,7 @@ function getLatecomersWithTime(month, filter='weekly') {
     return lateRecords;
 }
 
-// ---------- عرض الأعضاء ----------
+// ---------- عرض الأعضاء (للعادي) ----------
 function showMemberList() {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('memberScreen').classList.remove('hidden');
@@ -248,6 +248,24 @@ function showMemberList() {
         card.textContent = name;
         card.onclick = () => openMemberDashboard(name);
         memberList.appendChild(card);
+    });
+}
+
+// ---------- عرض الأعضاء في لوحة الأدمن ----------
+function showMemberListInAdmin() {
+    const memberListAdmin = document.getElementById('memberListAdmin');
+    if (!memberListAdmin) return;
+    memberListAdmin.innerHTML = '';
+    const normalMembers = allNames.slice(0, 19);
+    normalMembers.forEach(name => {
+        const card = document.createElement('div');
+        card.className = 'member-card';
+        card.textContent = name;
+        card.onclick = () => {
+            fromAdminEdit = true;
+            openMemberDashboard(name);
+        };
+        memberListAdmin.appendChild(card);
     });
 }
 
@@ -354,6 +372,10 @@ function showAdminDashboard() {
     currentMonth = 0;
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('adminDashboard').classList.remove('hidden');
+    
+    // عرض قائمة الأعضاء في لوحة الأدمن
+    showMemberListInAdmin();
+    
     renderMonthsTabs('adminMonthsTabs', false);
     const officialTimeElement = document.getElementById('currentOfficialTime');
     if (officialTimeElement) officialTimeElement.textContent = getOfficialTime();
@@ -396,7 +418,7 @@ async function updateAdminView() {
                                     <td style="padding:8px;">${l.name}</td>
                                     <td style="padding:8px;">${l.time}</td>
                                     <td style="padding:8px;">${l.date}</td>
-                                更
+                                </tr>
                             `).join('')}
                         </tbody>
                     </table>
@@ -434,7 +456,7 @@ async function updateAdminView() {
                     <th style="padding:12px;">متوسط التأخير</th>
                     <th style="padding:12px;">ملاحظات</th>
                     <th style="padding:12px;">تعديل</th>
-                <tr>
+                </tr>
             </thead>
             <tbody>`;
     
@@ -532,7 +554,7 @@ function downloadPDF() {
         const originalHTML = element.innerHTML;
         element.innerHTML = `
             <div style="text-align:center; margin-bottom:20px;">
-                <h1 style="color:#667eea;">نظام الحضور والغياب</h1>
+                <h1 style="color:#667eea;">أكولوثيا – نظام المتابعة</h1>
                 <h2>${currentFilter === 'monthly' ? `تقرير شهر ${currentMonth+1}` : 'تقرير أسبوعي'}</h2>
                 <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
                 <hr>
