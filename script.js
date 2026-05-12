@@ -18,6 +18,7 @@ let currentMember = null;
 let currentMonth = 0;
 let fromAdminEdit = false;
 let isAdminLoggedIn = false;
+let currentFilter = 'monthly'; // 'monthly' or 'weekly'
 
 const statusText = {
     'present': 'حاضر ✅',
@@ -148,6 +149,12 @@ async function calculatePersonalStats(name, month) {
 }
 
 // ---------- دوال الملاحظات ----------
+function getNoteForMember(memberName, month) {
+    const memberRecords = attendanceCache.filter(r => r[0] === memberName && r[1] === month + 1);
+    const notes = memberRecords.filter(r => r[6] && r[6].trim() !== '').map(r => r[6]);
+    return notes.join('\n---\n');
+}
+
 function showNoteDialog(memberName) {
     const currentNote = getNoteForMember(memberName, currentMonth);
     const dialog = document.createElement('div');
@@ -156,7 +163,7 @@ function showNoteDialog(memberName) {
     dialog.innerHTML = `
         <div class="dialog-content">
             <h3>📝 ملاحظات عن ${memberName}</h3>
-            <textarea id="memberNote" rows="6" style="width:100%; padding:12px; border-radius:12px; border:1px solid #ccc; font-size:14px; min-height:150px;">${currentNote}</textarea>
+            <textarea id="memberNote" rows="6" style="width:100%; padding:12px; border-radius:12px; border:1px solid #ccc; font-size:14px; min-height:150px;">${currentNote.replace(/</g, '&lt;')}</textarea>
             <br><br>
             <button onclick="saveNote('${memberName}')" class="btn-primary">💾 حفظ</button>
             <button onclick="closeNoteDialog()" class="btn-secondary">إلغاء</button>
@@ -168,12 +175,6 @@ function showNoteDialog(memberName) {
 function closeNoteDialog() {
     const dialog = document.getElementById('noteDialog');
     if(dialog) dialog.remove();
-}
-
-function getNoteForMember(memberName, month) {
-    const memberRecords = attendanceCache.filter(r => r[0] === memberName && r[1] === month + 1);
-    const notes = memberRecords.filter(r => r[6] && r[6].trim() !== '').map(r => r[6]);
-    return notes.join('\n---\n');
 }
 
 async function saveNote(memberName) {
@@ -201,7 +202,7 @@ async function saveNote(memberName) {
     alert('✅ تم حفظ الملاحظة');
 }
 
-// ---------- وظائف أخرى ----------
+// ---------- وظائف التصفية والحصول على البيانات ----------
 function getMemberRecords(name, month, filter='monthly') {
     let records = attendanceCache.filter(r => r[0] === name && r[1] === month + 1);
     if(filter === 'weekly'){
@@ -389,7 +390,7 @@ function renderMonthsTabs(containerId, isMember = true) {
     }
 }
 
-// ---------- الأدمن ----------
+// ---------- مشغل الأدمن ----------
 function showAdminLogin() {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('adminLoginScreen').classList.remove('hidden');
@@ -450,27 +451,15 @@ async function updateAdminView() {
                 <div style="background:#fff3e0; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #ed8936;">
                     <h3 style="color:#ed8936; margin-bottom:10px;">⏰ المتأخرون هذا الأسبوع</h3>
                     <table style="width:100%; border-collapse:collapse;">
-                        <thead><tr style="background:#ed8936; color:white;">
-                            <th style="padding:8px;">الاسم</th>
-                            <th style="padding:8px;">وقت الحضور</th>
-                            <th style="padding:8px;">التاريخ</th>
-                        </tr></thead>
+                        <thead><tr style="background:#ed8936; color:white;"><th style="padding:8px;">الاسم</th><th style="padding:8px;">وقت الحضور</th><th style="padding:8px;">التاريخ</th></tr></thead>
                         <tbody>
-                            ${latecomers.map(l => `
-                                <tr style="border-bottom:1px solid #ffe0b3;">
-                                    <td style="padding:8px;">${l.name}</td>
-                                    <td style="padding:8px;">${l.time}</td>
-                                    <td style="padding:8px;">${l.date}</td>
-                                </tr>
-                            `).join('')}
+                            ${latecomers.map(l => `<tr style="border-bottom:1px solid #ffe0b3;"><td style="padding:8px;">${l.name}</td><td style="padding:8px;">${l.time}</td><td style="padding:8px;">${l.date}</td></tr>`).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
         } else {
-            latecomersHtml = `<div style="background:#e6fffa; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #38b2ac;">
-                                ✅ لا يوجد متأخرون هذا الأسبوع
-                              </div>`;
+            latecomersHtml = `<div style="background:#e6fffa; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #38b2ac;">✅ لا يوجد متأخرون هذا الأسبوع</div>`;
         }
     }
     
@@ -486,22 +475,7 @@ async function updateAdminView() {
         ${latecomersHtml}
     `;
     
-    let html = `<div style="overflow-x:auto; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
-        <table style="width:100%; border-collapse:collapse; background:white;">
-            <thead>
-                <tr style="background:#1e293b; color:white;">
-                    <th style="padding:12px;">الاسم</th>
-                    <th style="padding:12px;">حضور</th>
-                    <th style="padding:12px;">غياب بعذر</th>
-                    <th style="padding:12px;">غياب بدون عذر</th>
-                    <th style="padding:12px;">مسافر</th>
-                    <th style="padding:12px;">عدد التأخير</th>
-                    <th style="padding:12px;">متوسط التأخير</th>
-                    <th style="padding:12px;">ملاحظات</th>
-                    <th style="padding:12px;">تعديل</th>
-                </tr>
-            </thead>
-            <tbody>`;
+    let html = `<div style="overflow-x:auto; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.1);"><table style="width:100%; border-collapse:collapse; background:white;"><thead><tr style="background:#1e293b; color:white;"><th style="padding:12px;">الاسم</th><th style="padding:12px;">حضور</th><th style="padding:12px;">غياب بعذر</th><th style="padding:12px;">غياب بدون عذر</th><th style="padding:12px;">مسافر</th><th style="padding:12px;">عدد التأخير</th><th style="padding:12px;">متوسط التأخير</th><th style="padding:12px;">ملاحظات</th><th style="padding:12px;">تعديل</th></tr></thead><tbody>`;
     
     for (let i = 0; i < allNames.length; i++) {
         const name = allNames[i];
@@ -510,32 +484,30 @@ async function updateAdminView() {
         const memberNotes = getNoteForMember(name, currentMonth);
         const notePreview = memberNotes.length > 80 ? memberNotes.substring(0, 80) + '...' : memberNotes;
         
-        html += `<tr style="background:${bgColor};">
-            <td style="padding:10px; font-weight:bold;">${name}鲜
-            <td style="padding:10px; color:#48bb78;">${s.presentRate}%鲜
-            <td style="padding:10px; color:#4299e1;">${s.excusedRate}%鲜
-            <td style="padding:10px; color:#f56565;">${s.absentRate}%鲜
-            <td style="padding:10px; color:#805ad5;">${s.travelRate}%鲜
-            <td style="padding:10px;">${s.lateCount}鲜
-            <td style="padding:10px;">${s.avgLate}鲜
-            <td style="padding:12px; min-width:280px; max-width:350px; word-break:break-word; background:#fefce8; font-size:14px; line-height:1.5;">
-                ${notePreview || '—'}
-                <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:8px; display:inline-block; background:#eab308; color:#1e293b; padding:6px 12px;">📝 ملاحظة</button>
-            鲜
-            <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button>鲜
-        </tr>`;
+        html += `
+            <tr style="background:${bgColor};">
+                <td style="padding:10px; font-weight:bold;">${name}</td>
+                <td style="padding:10px; color:#48bb78;">${s.presentRate}%</td>
+                <td style="padding:10px; color:#4299e1;">${s.excusedRate}%</td>
+                <td style="padding:10px; color:#f56565;">${s.absentRate}%</td>
+                <td style="padding:10px; color:#805ad5;">${s.travelRate}%</td>
+                <td style="padding:10px;">${s.lateCount}</td>
+                <td style="padding:10px;">${s.avgLate}</td>
+                <td style="padding:12px; min-width:280px; max-width:350px; word-break:break-word; background:#fefce8; font-size:14px; line-height:1.5;">
+                    ${notePreview || '—'}
+                    <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:8px; display:inline-block; background:#eab308; color:#1e293b; padding:6px 12px;">📝 ملاحظة</button>
+                </td>
+                <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button></td>
+            </tr>
+        `;
     }
     
-    html += `</tbody>
-    </table>
-    </div>`;
+    html += `</tbody></table></div>`;
     const tableDiv = document.getElementById('allMembersTable');
     if (tableDiv) tableDiv.innerHTML = html;
 }
 
-// ---------- الفلتر الشهري والأسبوعي ----------
-let currentFilter = 'monthly';
-
+// ---------- مراقبة الأزرار (شهري/أسبوعي) ----------
 document.addEventListener('click', (e) => {
     if(e.target.id === 'filterMonthly'){
         currentFilter = 'monthly';
@@ -621,7 +593,7 @@ function downloadPDF() {
         
         html2pdf().set({
             margin: 10,
-            filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعי'}_${today.toISOString().slice(0,10)}.pdf`,
+            filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعي'}_${today.toISOString().slice(0,10)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
