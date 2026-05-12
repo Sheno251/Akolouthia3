@@ -18,7 +18,7 @@ let currentMember = null;
 let currentMonth = 0;
 let fromAdminEdit = false;
 let isAdminLoggedIn = false;
-let currentFilter = 'monthly'; // 'monthly' or 'weekly'
+let currentFilter = 'monthly';
 
 const statusText = {
     'present': 'حاضر ✅',
@@ -250,6 +250,28 @@ function formatDateRange() {
     }
 }
 
+// ---------- حذف الشهر الحالي ----------
+async function deleteCurrentMonthData() {
+    if (!confirm(`⚠️ هل أنت متأكد من حذف جميع بيانات شهر ${currentMonth + 1}؟\nلا يمكن التراجع.`)) return;
+    
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: 'delete', month: currentMonth + 1 })
+        });
+        
+        dataLoaded = false;
+        attendanceCache = [];
+        await loadDataFromSheet();
+        updateAdminView();
+        alert(`✅ تم حذف شهر ${currentMonth + 1}`);
+    } catch(e) {
+        console.error("خطأ في الحذف:", e);
+        alert("حدث خطأ أثناء حذف البيانات");
+    }
+}
+
 // ---------- عرض الأعضاء ----------
 function showMemberList() {
     const adminBtn = document.getElementById('adminPanelBtn');
@@ -430,7 +452,6 @@ function editMemberFromAdmin(memberName) {
 async function updateAdminView() {
     await loadDataFromSheet();
     
-    // تحديث نطاق التاريخ
     const dateRangeSpan = document.getElementById('reportDateRange');
     if (dateRangeSpan) dateRangeSpan.innerHTML = formatDateRange();
     
@@ -450,22 +471,19 @@ async function updateAdminView() {
             latecomersHtml = `
                 <div style="background:#fff3e0; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #ed8936;">
                     <h3 style="color:#ed8936; margin-bottom:10px;">⏰ المتأخرون هذا الأسبوع</h3>
-                    <table style="width:100%; border-collapse:collapse;">
-                        <thead><tr style="background:#ed8936; color:white;"><th style="padding:8px;">الاسم</th><th style="padding:8px;">وقت الحضور</th><th style="padding:8px;">التاريخ</th></tr></thead>
-                        <tbody>
-                            ${latecomers.map(l => `<tr style="border-bottom:1px solid #ffe0b3;"><td style="padding:8px;">${l.name}</td><td style="padding:8px;">${l.time}</td><td style="padding:8px;">${l.date}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                    <table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#ed8936; color:white;"><th>الاسم</th><th>وقت الحضور</th><th>التاريخ</th></tr></thead><tbody>
+                        ${latecomers.map(l => `<tr><td>${l.name}</td><td>${l.time}</td><td>${l.date}</td></tr>`).join('')}
+                    </tbody></table>
                 </div>
             `;
         } else {
-            latecomersHtml = `<div style="background:#e6fffa; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #38b2ac;">✅ لا يوجد متأخرون هذا الأسبوع</div>`;
+            latecomersHtml = `<div style="background:#e6fffa; padding:15px; border-radius:15px; margin-top:20px;">✅ لا يوجد متأخرون هذا الأسبوع</div>`;
         }
     }
     
     document.getElementById('adminStats').innerHTML = `
         <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:20px; border-radius:15px; margin-bottom:20px;">
-            <h3 style="margin:0 0 10px 0;">📊 إحصائيات ${currentFilter==='monthly'?`شهر ${currentMonth+1}`:'آخر سبت'}</h3>
+            <h3>📊 إحصائيات ${currentFilter==='monthly'?`شهر ${currentMonth+1}`:'آخر سبت'}</h3>
             <div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:space-between;">
                 <div>🏆 أعلى حضور: <strong>${bestAttendance ? allNames[stats.indexOf(bestAttendance)] : '-'}</strong> (${bestAttendance?.presentRate || 0}%)</div>
                 <div>⚠️ أعلى غياب بدون عذر: <strong>${worstAbsence ? allNames[stats.indexOf(worstAbsence)] : '-'}</strong> (${worstAbsence?.absentRate || 0}%)</div>
@@ -475,7 +493,9 @@ async function updateAdminView() {
         ${latecomersHtml}
     `;
     
-    let html = `<div style="overflow-x:auto; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.1);"><table style="width:100%; border-collapse:collapse; background:white;"><thead><tr style="background:#1e293b; color:white;"><th style="padding:12px;">الاسم</th><th style="padding:12px;">حضور</th><th style="padding:12px;">غياب بعذر</th><th style="padding:12px;">غياب بدون عذر</th><th style="padding:12px;">مسافر</th><th style="padding:12px;">عدد التأخير</th><th style="padding:12px;">متوسط التأخير</th><th style="padding:12px;">ملاحظات</th><th style="padding:12px;">تعديل</th></tr></thead><tbody>`;
+    let html = `<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#1e293b; color:white;">
+        <th>الاسم</th><th>حضور</th><th>غياب بعذر</th><th>غياب بدون عذر</th><th>مسافر</th><th>عدد التأخير</th><th>متوسط التأخير</th><th>ملاحظات</th><th>تعديل</th>
+    </tr></thead><tbody>`;
     
     for (let i = 0; i < allNames.length; i++) {
         const name = allNames[i];
@@ -487,27 +507,26 @@ async function updateAdminView() {
         html += `
             <tr style="background:${bgColor};">
                 <td style="padding:10px; font-weight:bold;">${name}</td>
-                <td style="padding:10px; color:#48bb78;">${s.presentRate}%</td>
-                <td style="padding:10px; color:#4299e1;">${s.excusedRate}%</td>
-                <td style="padding:10px; color:#f56565;">${s.absentRate}%</td>
-                <td style="padding:10px; color:#805ad5;">${s.travelRate}%</td>
-                <td style="padding:10px;">${s.lateCount}</td>
-                <td style="padding:10px;">${s.avgLate}</td>
-                <td style="padding:12px; min-width:280px; max-width:350px; word-break:break-word; background:#fefce8; font-size:14px; line-height:1.5;">
+                <td style="color:#48bb78;">${s.presentRate}%</td>
+                <td style="color:#4299e1;">${s.excusedRate}%</td>
+                <td style="color:#f56565;">${s.absentRate}%</td>
+                <td style="color:#805ad5;">${s.travelRate}%</td>
+                <td>${s.lateCount}</td>
+                <td>${s.avgLate}</td>
+                <td style="min-width:250px; max-width:300px; background:#fefce8;">
                     ${notePreview || '—'}
-                    <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:8px; display:inline-block; background:#eab308; color:#1e293b; padding:6px 12px;">📝 ملاحظة</button>
+                    <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:5px; background:#eab308; color:#1e293b;">📝 ملاحظة</button>
                 </td>
-                <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button></td>
+                <td><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button></td>
             </tr>
         `;
     }
     
     html += `</tbody></table></div>`;
-    const tableDiv = document.getElementById('allMembersTable');
-    if (tableDiv) tableDiv.innerHTML = html;
+    document.getElementById('allMembersTable').innerHTML = html;
 }
 
-// ---------- مراقبة الأزرار (شهري/أسبوعي) ----------
+// ---------- مراقبة الأزرار ----------
 document.addEventListener('click', (e) => {
     if(e.target.id === 'filterMonthly'){
         currentFilter = 'monthly';
@@ -523,6 +542,7 @@ document.addEventListener('click', (e) => {
     }
     if(e.target.id === 'changePasswordBtn') showChangePasswordDialog();
     if(e.target.id === 'downloadPDFBtn') downloadPDF();
+    if(e.target.id === 'deleteMonthBtn') deleteCurrentMonthData();
 });
 
 // ---------- تغيير كلمة المرور ----------
@@ -533,7 +553,7 @@ function showChangePasswordDialog() {
     dialog.innerHTML = `
         <div class="dialog-content">
             <h3>🔒 تغيير كلمة المرور</h3>
-            <p style="font-size:14px">متاح فقط لـ <strong>shenouda</strong></p>
+            <p>متاح فقط لـ <strong>shenouda</strong></p>
             <input type="password" id="currentPass" placeholder="كلمة المرور الحالية">
             <input type="password" id="newPass" placeholder="كلمة المرور الجديدة">
             <input type="password" id="confirmNewPass" placeholder="تأكيد كلمة المرور">
@@ -593,7 +613,7 @@ function downloadPDF() {
         
         html2pdf().set({
             margin: 10,
-            filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعي'}_${today.toISOString().slice(0,10)}.pdf`,
+            filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعי'}_${today.toISOString().slice(0,10)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
