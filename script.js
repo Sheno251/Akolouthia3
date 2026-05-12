@@ -2,7 +2,8 @@
 const allNames = [
     "مارتيروس جمال", "نرمين فرج الله", "ميرنا فام", "بيشوي صفوت", "شنوده نصحي", "سيلفيا طلعت", 
     "سيمون سمعان", "كرستينا ميلاد", "ماري بشاي", "ابانوب فرج الله", "امال عادل", "باسم جابر",
-    "هاله عادل", "دميانه سمعان", "فام روماني", "ويصا مرزق", "ماري هاني", "مينا فام", "فيولا طلعت"
+    "هاله عادل", "دميانه سمعان", "فام روماني", "ويصا مرزق", "ماري هاني", "مينا فام", "فيولا طلعت",
+    "shenouda", "admin2", "admin3"
 ];
 
 // الأدمن (3 أدمن)
@@ -16,6 +17,7 @@ const MONTHS_COUNT = 12;
 let currentMember = null;
 let currentMonth = 0;
 let fromAdminEdit = false;
+let isAdminLoggedIn = false;
 
 const statusText = {
     'present': 'حاضر ✅',
@@ -106,7 +108,7 @@ async function recordStatus(status) {
     
     await saveToSheet(record);
     await updateMemberView();
-    if(!document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
+    if(document.getElementById('adminDashboard') && !document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
     alert(`✅ تم تسجيل ${status === 'present' ? 'الحضور' : status === 'late' ? 'التأخير' : status === 'absent' ? 'الغياب بدون عذر' : status === 'excused' ? 'الغياب بعذر' : 'السفر'} بنجاح`);
 }
 
@@ -197,7 +199,7 @@ async function saveNote(memberName) {
     
     await saveToSheet(record);
     await loadDataFromSheet();
-    await updateAdminView();
+    if(document.getElementById('adminDashboard') && !document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
     closeNoteDialog();
     alert('✅ تم حفظ الملاحظة');
 }
@@ -235,6 +237,16 @@ function getLatecomersWithTime(month, filter='weekly') {
 
 // ---------- عرض الأعضاء (للعادي) ----------
 function showMemberList() {
+    // إخفاء زر لوحة الأدمن
+    const adminBtn = document.getElementById('adminPanelBtn');
+    if (adminBtn) adminBtn.style.display = 'none';
+    // إخفاء زر الرجوع للأدمن في صفحة العضو
+    const backToAdminBtn = document.getElementById('backToAdminBtn');
+    if (backToAdminBtn) backToAdminBtn.style.display = 'none';
+    
+    isAdminLoggedIn = false;
+    fromAdminEdit = false;
+    
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('memberScreen').classList.remove('hidden');
     
@@ -251,11 +263,20 @@ function showMemberList() {
     });
 }
 
-// ---------- عرض الأعضاء في لوحة الأدمن ----------
-function showMemberListInAdmin() {
-    const memberListAdmin = document.getElementById('memberListAdmin');
-    if (!memberListAdmin) return;
-    memberListAdmin.innerHTML = '';
+// ---------- عرض الأعضاء للأدمن ----------
+function showMemberListForAdmin() {
+    // إظهار زر لوحة الأدمن
+    const adminBtn = document.getElementById('adminPanelBtn');
+    if (adminBtn) adminBtn.style.display = 'inline-block';
+    
+    isAdminLoggedIn = true;
+    
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('memberScreen').classList.remove('hidden');
+    
+    const memberList = document.getElementById('memberList');
+    memberList.innerHTML = '';
+    
     const normalMembers = allNames.slice(0, 19);
     normalMembers.forEach(name => {
         const card = document.createElement('div');
@@ -265,7 +286,7 @@ function showMemberListInAdmin() {
             fromAdminEdit = true;
             openMemberDashboard(name);
         };
-        memberListAdmin.appendChild(card);
+        memberList.appendChild(card);
     });
 }
 
@@ -277,9 +298,16 @@ function openMemberDashboard(name) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('memberDashboard').classList.remove('hidden');
     document.getElementById('memberName').textContent = name;
+    
+    // إظهار أو إخفاء زر الرجوع للأدمن
+    const backToAdminBtn = document.getElementById('backToAdminBtn');
+    if (backToAdminBtn) {
+        backToAdminBtn.style.display = (isAdminLoggedIn || fromAdminEdit || isAdminPerson) ? 'inline-block' : 'none';
+    }
+    
     renderMonthsTabs('memberMonthsTabs', true);
     
-    if (fromAdminEdit || isAdminPerson) {
+    if (fromAdminEdit || isAdminLoggedIn || isAdminPerson) {
         document.querySelectorAll('.status-btn').forEach(btn => btn.style.display = 'flex');
         fromAdminEdit = false;
     } else {
@@ -287,6 +315,10 @@ function openMemberDashboard(name) {
     }
     
     updateMemberView();
+}
+
+function backToAdminPanel() {
+    showAdminDashboard();
 }
 
 async function updateMemberView() {
@@ -360,26 +392,25 @@ function verifyAdmin() {
     const password = document.getElementById('adminPassword').value;
     const admin = admins.find(a => a.username === username && a.password === password);
     if (admin) {
-        showAdminDashboard();
+        showMemberListForAdmin();
     } else {
         alert('اسم المستخدم أو كلمة السر خطأ');
     }
 }
 
 function showAdminDashboard() {
-    fromAdminEdit = false;
     currentMember = null;
     currentMonth = 0;
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('adminDashboard').classList.remove('hidden');
-    
-    // عرض قائمة الأعضاء في لوحة الأدمن
-    showMemberListInAdmin();
-    
     renderMonthsTabs('adminMonthsTabs', false);
     const officialTimeElement = document.getElementById('currentOfficialTime');
     if (officialTimeElement) officialTimeElement.textContent = getOfficialTime();
     updateAdminView();
+}
+
+function backToMemberListForAdmin() {
+    showMemberListForAdmin();
 }
 
 function editMemberFromAdmin(memberName) {
@@ -583,7 +614,11 @@ function backToLogin() {
 }
 
 function backToMemberList() {
-    showMemberList();
+    if (isAdminLoggedIn) {
+        showMemberListForAdmin();
+    } else {
+        showMemberList();
+    }
 }
 
 // تحميل البيانات أول ما الموقع يفتح
