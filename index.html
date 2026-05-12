@@ -63,9 +63,10 @@
         </div>
     </div>
 
-    <!-- شاشة اختيار العضو (للعادي) -->
+    <!-- شاشة اختيار العضو (للعادي وللأدمن) -->
     <div id="memberScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
+        <button id="adminPanelBtn" onclick="showAdminDashboard()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
         <div id="memberList" class="member-grid"></div>
     </div>
@@ -73,6 +74,7 @@
     <!-- لوحة العضو (تظهر فيها الأزرار للأدمن فقط) -->
     <div id="memberDashboard" class="screen hidden">
         <button onclick="backToMemberList()" class="btn-back">← رجوع</button>
+        <button id="backToAdminBtn" onclick="backToAdminPanel()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 id="memberName" style="margin-top:12px"></h2>
         <div class="months-tabs" id="memberMonthsTabs"></div>
         <div class="attendance-buttons" id="attendanceButtons">
@@ -97,12 +99,11 @@
         </div>
     </div>
 
-    <!-- لوحة تحكم الأدمن -->
+    <!-- لوحة تحكم الأدمن (الإحصائيات والتقارير) -->
     <div id="adminDashboard" class="screen hidden">
-        <button onclick="backToLogin()" class="btn-back">← خروج</button>
+        <button onclick="backToMemberListForAdmin()" class="btn-back">← رجوع للأعضاء</button>
         <h2 style="margin-top:12px">لوحة تحكم الأدمن</h2>
         
-        <!-- إعدادات الموعد الرسمي -->
         <div class="settings-card">
             <h3>⚙️ إعدادات الموعد الرسمي</h3>
             <div class="time-input">
@@ -113,13 +114,6 @@
             </div>
         </div>
 
-        <!-- قائمة الأعضاء (الـ 19 اسم) -->
-        <div style="margin-top:20px;">
-            <h3>👥 قائمة الأعضاء</h3>
-            <div id="memberListAdmin" class="member-grid"></div>
-        </div>
-
-        <!-- التقارير والإحصائيات -->
         <div class="months-tabs" id="adminMonthsTabs"></div>
         <div class="filter-buttons">
             <button id="filterMonthly" class="active">📆 شهري</button>
