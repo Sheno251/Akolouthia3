@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>أكولوثيا – نظام المتابعه</title>
+    <title>أكولوثيا – نظام المتابعة</title>
     <style>
+        /* نفس الـ CSS القديم من غير تغيير */
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui}
         body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
         .container{max-width:1200px;margin:0 auto}
         .screen{background:white;border-radius:24px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:fadeIn 0.3s}
         .hidden{display:none}
         @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        h1{color:#1e293b;text-align:center;margin-bottom:24px}
+        h1{background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;margin-bottom:24px}
         .card{text-align:center;padding:20px}
         .btn-primary,.btn-secondary,.btn-back{padding:12px 24px;margin:8px;border:none;border-radius:30px;cursor:pointer;font-weight:bold;transition:0.2s}
         .btn-primary{background:#667eea;color:white}
@@ -54,7 +55,7 @@
 <body>
 <div class="container">
     <div id="loginScreen" class="screen">
-        <h1>أكولوثيا – نظام المتابعه</h1>
+        <h1>📖 أكولوثيا – نظام المتابعة</h1>
         <div class="card">
             <h2>اختر هويتك</h2>
             <button onclick="showMemberList()" class="btn-primary">👤 عضو</button>
@@ -62,6 +63,7 @@
         </div>
     </div>
 
+    <!-- باقي الـ HTML زي ما هو من غير تغيير -->
     <div id="memberScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
