@@ -1,4 +1,4 @@
-// الأسماء الكاملة (12 عضو + 3 أدمن)
+// الأسماء الكاملة (19 عضو + 3 أدمن)
 const allNames = [
     "مارتيروس جمال", "نرمين فرج الله", "ميرنا فام", "بيشوي صفوت", "شنوده نصحي", "سيلفيا طلعت", 
     "سيمون سمعان", "كرستينا ميلاد", "ماري بشاي", "ابانوب فرج الله", "امال عادل", "باسم جابر",
@@ -15,7 +15,7 @@ const admins = [
 const MONTHS_COUNT = 12;
 let currentMember = null;
 let currentMonth = 0;
-let fromAdminEdit = false;  // <----- متغير جديد
+let fromAdminEdit = false;
 
 const statusText = {
     'present': 'حاضر ✅',
@@ -88,16 +88,20 @@ async function recordStatus(status) {
     
     const now = new Date();
     let lateMinutes = 0;
-    if(status === 'late') lateMinutes = calculateLateMinutes();
+    let actualTime = now.toLocaleTimeString('ar-EG');
+    
+    if(status === 'late') {
+        lateMinutes = calculateLateMinutes();
+    }
     
     const record = [
         currentMember,
         currentMonth + 1,
         now.toISOString().slice(0,10),
         status,
-        now.toLocaleTimeString('ar-EG'),
+        actualTime,
         lateMinutes,
-        ""
+        ""  // note
     ];
     
     await saveToSheet(record);
@@ -144,6 +148,91 @@ async function calculatePersonalStats(name, month) {
     };
 }
 
+// ---------- دوال الملاحظات ----------
+function showNoteDialog(memberName) {
+    const currentNote = getNoteForMember(memberName, currentMonth);
+    const dialog = document.createElement('div');
+    dialog.className = 'dialog';
+    dialog.id = 'noteDialog';
+    dialog.innerHTML = `
+        <div class="dialog-content">
+            <h3>📝 ملاحظات عن ${memberName}</h3>
+            <textarea id="memberNote" rows="4" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">${currentNote}</textarea>
+            <br><br>
+            <button onclick="saveNote('${memberName}')" class="btn-primary">💾 حفظ</button>
+            <button onclick="closeNoteDialog()" class="btn-secondary">إلغاء</button>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+}
+
+function closeNoteDialog() {
+    const dialog = document.getElementById('noteDialog');
+    if(dialog) dialog.remove();
+}
+
+function getNoteForMember(memberName, month) {
+    const memberRecords = attendanceCache.filter(r => r[0] === memberName && r[1] === month + 1);
+    const notes = memberRecords.filter(r => r[6] && r[6].trim() !== '').map(r => r[6]);
+    return notes.join('\n---\n');
+}
+
+async function saveNote(memberName) {
+    const noteText = document.getElementById('memberNote').value;
+    if (!noteText.trim()) {
+        closeNoteDialog();
+        return;
+    }
+    
+    const now = new Date();
+    const record = [
+        memberName,
+        currentMonth + 1,
+        now.toISOString().slice(0,10),
+        'note',
+        now.toLocaleTimeString('ar-EG'),
+        0,
+        noteText
+    ];
+    
+    await saveToSheet(record);
+    await loadDataFromSheet();
+    await updateAdminView();
+    closeNoteDialog();
+    alert('✅ تم حفظ الملاحظة');
+}
+
+// ---------- وظائف أخرى ----------
+function getMemberRecords(name, month, filter='monthly') {
+    let records = attendanceCache.filter(r => r[0] === name && r[1] === month + 1);
+    if(filter === 'weekly'){
+        const today = new Date();
+        const daysToLastSat = (today.getDay() + 1) % 7;
+        const lastSaturday = new Date(today);
+        lastSaturday.setDate(today.getDate() - daysToLastSat);
+        const saturdayStr = lastSaturday.toISOString().slice(0,10);
+        records = records.filter(r => r[2] === saturdayStr);
+    }
+    return records;
+}
+
+function getLatecomersWithTime(month, filter='weekly') {
+    const lateRecords = [];
+    for (const name of allNames.slice(0, 19)) {
+        const records = getMemberRecords(name, month, filter);
+        records.forEach(r => {
+            if (r[3] === 'late') {
+                lateRecords.push({
+                    name: name,
+                    time: r[4],
+                    date: r[2]
+                });
+            }
+        });
+    }
+    return lateRecords;
+}
+
 // ---------- عرض الأعضاء ----------
 function showMemberList() {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
@@ -163,7 +252,7 @@ function showMemberList() {
 }
 
 function openMemberDashboard(name) {
-    const isAdminPerson = (name === "admin1" || name === "admin2" || name === "admin3");
+    const isAdminPerson = (name === "shenouda" || name === "admin2" || name === "admin3");
     
     currentMember = name;
     currentMonth = 0;
@@ -172,7 +261,6 @@ function openMemberDashboard(name) {
     document.getElementById('memberName').textContent = name;
     renderMonthsTabs('memberMonthsTabs', true);
     
-    // إذا كان دخول من الأدمن (fromAdminEdit=true) أو العضو نفسه أدمن، نظهر الأزرار
     if (fromAdminEdit || isAdminPerson) {
         document.querySelectorAll('.status-btn').forEach(btn => btn.style.display = 'flex');
         fromAdminEdit = false;
@@ -185,14 +273,14 @@ function openMemberDashboard(name) {
 
 async function updateMemberView() {
     await loadDataFromSheet();
-    const records = attendanceCache.filter(r => r[0] === currentMember && r[1] === currentMonth + 1);
+    const records = getMemberRecords(currentMember, currentMonth);
     const lastRecord = records[records.length - 1];
     
     const currentStatusDiv = document.getElementById('currentStatus');
     if (lastRecord) {
         let lateInfo = '';
         if (lastRecord[3] === 'late') {
-            lateInfo = `<br><small>⏱️ تأخر ${lastRecord[5]} دقيقة</small>`;
+            lateInfo = `<br><small>⏱️ تأخر ${lastRecord[5]} دقيقة - حضر الساعة ${lastRecord[4]}</small>`;
         }
         currentStatusDiv.innerHTML = `
             <strong>آخر تسجيل:</strong><br>
@@ -204,6 +292,13 @@ async function updateMemberView() {
     }
     
     const stats = await calculatePersonalStats(currentMember, currentMonth);
+    const userRecords = getMemberRecords(currentMember, currentMonth);
+    const lastLate = userRecords.filter(r => r[3] === 'late').pop();
+    let lastLateTime = '';
+    if (lastLate) {
+        lastLateTime = `<p>⏱️ آخر مرة تأخرت: حضر الساعة ${lastLate[4]} بتاريخ ${lastLate[2]}</p>`;
+    }
+    
     document.getElementById('personalStats').innerHTML = `
         <p>✅ الحضور (حاضر + متأخر): ${stats.presentRate}%</p>
         <p>📝 الغياب بعذر: ${stats.excusedRate}%</p>
@@ -211,7 +306,8 @@ async function updateMemberView() {
         <p>✈️ مسافر: ${stats.travelRate}%</p>
         <p>📊 إجمالي التسجيلات: ${stats.total}</p>
         ${stats.lateCount > 0 ? `<p>⏰ عدد مرات التأخير: ${stats.lateCount}</p>
-        <p>⏱️ متوسط التأخير: ${stats.avgLate} دقيقة</p>` : ''}
+        <p>⏱️ متوسط التأخير: ${stats.avgLate} دقيقة</p>
+        ${lastLateTime}` : ''}
     `;
 }
 
@@ -265,7 +361,7 @@ function showAdminDashboard() {
 }
 
 function editMemberFromAdmin(memberName) {
-    fromAdminEdit = true;  // علامة إننا داخلين من الأدمن
+    fromAdminEdit = true;
     openMemberDashboard(memberName);
 }
 
@@ -281,19 +377,49 @@ async function updateAdminView() {
     const worstAbsence = [...stats].sort((a,b) => b.absentRate - a.absentRate)[0];
     const mostLate = [...stats].sort((a,b) => b.lateCount - a.lateCount)[0];
     
-    const adminStatsDiv = document.getElementById('adminStats');
-    if (adminStatsDiv) {
-        adminStatsDiv.innerHTML = `
-            <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:20px; border-radius:15px; margin-bottom:20px;">
-                <h3 style="margin:0 0 10px 0;">📊 إحصائيات شهر ${currentMonth + 1}</h3>
-                <div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:space-between;">
-                    <div>🏆 أعلى نسبة حضور: <strong>${bestAttendance ? allNames[stats.indexOf(bestAttendance)] : '-'}</strong> (${bestAttendance?.presentRate || 0}%)</div>
-                    <div>⚠️ أعلى غياب بدون عذر: <strong>${worstAbsence ? allNames[stats.indexOf(worstAbsence)] : '-'}</strong> (${worstAbsence?.absentRate || 0}%)</div>
-                    <div>⏰ أكثر عضو تأخيراً: <strong>${mostLate ? allNames[stats.indexOf(mostLate)] : '-'}</strong> (${mostLate?.lateCount || 0} مرة)</div>
+    let latecomersHtml = '';
+    if (currentFilter === 'weekly') {
+        const latecomers = getLatecomersWithTime(currentMonth, 'weekly');
+        if (latecomers.length > 0) {
+            latecomersHtml = `
+                <div style="background:#fff3e0; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #ed8936;">
+                    <h3 style="color:#ed8936; margin-bottom:10px;">⏰ المتأخرون هذا الأسبوع</h3>
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead><tr style="background:#ed8936; color:white;">
+                            <th style="padding:8px;">الاسم</th>
+                            <th style="padding:8px;">وقت الحضور</th>
+                            <th style="padding:8px;">التاريخ</th>
+                        </tr></thead>
+                        <tbody>
+                            ${latecomers.map(l => `
+                                <tr style="border-bottom:1px solid #ffe0b3;">
+                                    <td style="padding:8px;">${l.name}</td>
+                                    <td style="padding:8px;">${l.time}</td>
+                                    <td style="padding:8px;">${l.date}</td>
+                                更
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            latecomersHtml = `<div style="background:#e6fffa; padding:15px; border-radius:15px; margin-top:20px; border-right:4px solid #38b2ac;">
+                                ✅ لا يوجد متأخرون هذا الأسبوع
+                              </div>`;
+        }
     }
+    
+    document.getElementById('adminStats').innerHTML = `
+        <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:20px; border-radius:15px; margin-bottom:20px;">
+            <h3 style="margin:0 0 10px 0;">📊 إحصائيات ${currentFilter==='monthly'?`شهر ${currentMonth+1}`:'آخر سبت'}</h3>
+            <div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:space-between;">
+                <div>🏆 أعلى حضور: <strong>${bestAttendance ? allNames[stats.indexOf(bestAttendance)] : '-'}</strong> (${bestAttendance?.presentRate || 0}%)</div>
+                <div>⚠️ أعلى غياب بدون عذر: <strong>${worstAbsence ? allNames[stats.indexOf(worstAbsence)] : '-'}</strong> (${worstAbsence?.absentRate || 0}%)</div>
+                <div>⏰ أكثر عضو تأخيراً: <strong>${mostLate ? allNames[stats.indexOf(mostLate)] : '-'}</strong> (${mostLate?.lateCount || 0} مرة)</div>
+            </div>
+        </div>
+        ${latecomersHtml}
+    `;
     
     let html = `<div style="overflow-x:auto; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
         <table style="width:100%; border-collapse:collapse; background:white;">
@@ -306,35 +432,45 @@ async function updateAdminView() {
                     <th style="padding:12px;">مسافر</th>
                     <th style="padding:12px;">عدد التأخير</th>
                     <th style="padding:12px;">متوسط التأخير</th>
-                    <th style="padding:12px;">إجمالي</th>
+                    <th style="padding:12px;">ملاحظات</th>
                     <th style="padding:12px;">تعديل</th>
-                </tr>
+                <tr>
             </thead>
             <tbody>`;
     
-    stats.forEach((s, index) => {
-        const bgColor = index % 2 === 0 ? '#f7fafc' : 'white';
+    for (let i = 0; i < allNames.length; i++) {
+        const name = allNames[i];
+        const s = stats[i];
+        const bgColor = i % 2 === 0 ? '#f7fafc' : 'white';
+        const memberNotes = getNoteForMember(name, currentMonth);
+        const notePreview = memberNotes.length > 30 ? memberNotes.substring(0, 30) + '...' : memberNotes;
+        
         html += `<tr style="background:${bgColor};">
-            <td style="padding:10px; font-weight:bold;">${allNames[index]}</td>
+            <td style="padding:10px; font-weight:bold;">${name}</td>
             <td style="padding:10px; color:#48bb78;">${s.presentRate}%</td>
             <td style="padding:10px; color:#4299e1;">${s.excusedRate}%</td>
             <td style="padding:10px; color:#f56565;">${s.absentRate}%</td>
             <td style="padding:10px; color:#805ad5;">${s.travelRate}%</td>
             <td style="padding:10px;">${s.lateCount}</td>
             <td style="padding:10px;">${s.avgLate}</td>
-            <td style="padding:10px;">${s.total}</td>
-            <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${allNames[index]}')">✏️ تعديل</button></td>
+            <td style="padding:10px; max-width:150px; word-break:break-word;">
+                ${notePreview || '—'}
+                <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:5px; display:block;">✏️ إضافة ملاحظة</button>
+            </td>
+            <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button></td>
         </tr>`;
-    });
+    }
     
     html += `</tbody>
-        </table>
+    </table>
     </div>`;
     const tableDiv = document.getElementById('allMembersTable');
     if (tableDiv) tableDiv.innerHTML = html;
 }
 
 // ---------- الفلتر الشهري والأسبوعي ----------
+let currentFilter = 'monthly';
+
 document.addEventListener('click', (e) => {
     if(e.target.id === 'filterMonthly'){
         currentFilter = 'monthly';
@@ -352,8 +488,6 @@ document.addEventListener('click', (e) => {
     if(e.target.id === 'downloadPDFBtn') downloadPDF();
 });
 
-let currentFilter = 'monthly';
-
 // ---------- تغيير كلمة المرور ----------
 function showChangePasswordDialog() {
     const dialog = document.createElement('div');
@@ -362,7 +496,7 @@ function showChangePasswordDialog() {
     dialog.innerHTML = `
         <div class="dialog-content">
             <h3>🔒 تغيير كلمة المرور</h3>
-            <p style="font-size:14px">متاح فقط لـ <strong>admin1</strong></p>
+            <p style="font-size:14px">متاح فقط لـ <strong>shenouda</strong></p>
             <input type="password" id="currentPass" placeholder="كلمة المرور الحالية">
             <input type="password" id="newPass" placeholder="كلمة المرور الجديدة">
             <input type="password" id="confirmNewPass" placeholder="تأكيد كلمة المرور">
@@ -382,22 +516,23 @@ function changeAdminPasswordTemp() {
     const current = document.getElementById('currentPass').value;
     const newPass = document.getElementById('newPass').value;
     const confirm = document.getElementById('confirmNewPass').value;
-    const admin1 = admins.find(a => a.username === 'admin1');
-    if(!admin1 || admin1.password !== current) return alert('⚠️ كلمة المرور الحالية غير صحيحة');
+    const mainAdmin = admins.find(a => a.username === 'shenouda');
+    if(!mainAdmin || mainAdmin.password !== current) return alert('⚠️ كلمة المرور الحالية غير صحيحة');
     if(newPass !== confirm) return alert('⚠️ كلمة المرور الجديدة غير متطابقة');
-    admin1.password = newPass;
+    mainAdmin.password = newPass;
     localStorage.setItem('customAdmins', JSON.stringify(admins));
     alert('✅ تم تغيير كلمة المرور بنجاح');
     closeTempDialog();
 }
 
+// ---------- PDF ----------
 function downloadPDF() {
     const element = document.getElementById('pdf-content');
     if (element && typeof html2pdf !== 'undefined') {
         const originalHTML = element.innerHTML;
         element.innerHTML = `
             <div style="text-align:center; margin-bottom:20px;">
-                <h1 style="color:#667eea;">أكولوثيا – نظام المتابعة</h1>
+                <h1 style="color:#667eea;">نظام الحضور والغياب</h1>
                 <h2>${currentFilter === 'monthly' ? `تقرير شهر ${currentMonth+1}` : 'تقرير أسبوعي'}</h2>
                 <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
                 <hr>
@@ -428,3 +563,6 @@ function backToLogin() {
 function backToMemberList() {
     showMemberList();
 }
+
+// تحميل البيانات أول ما الموقع يفتح
+loadDataFromSheet();
