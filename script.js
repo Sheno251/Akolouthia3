@@ -15,6 +15,7 @@ const admins = [
 const MONTHS_COUNT = 12;
 let currentMember = null;
 let currentMonth = 0;
+let fromAdminEdit = false;  // <----- متغير جديد
 
 const statusText = {
     'present': 'حاضر ✅',
@@ -162,7 +163,7 @@ function showMemberList() {
 }
 
 function openMemberDashboard(name) {
-    const isAdminPerson = name === "admin1" || name === "admin2" || name === "admin3";
+    const isAdminPerson = (name === "admin1" || name === "admin2" || name === "admin3");
     
     currentMember = name;
     currentMonth = 0;
@@ -171,8 +172,10 @@ function openMemberDashboard(name) {
     document.getElementById('memberName').textContent = name;
     renderMonthsTabs('memberMonthsTabs', true);
     
-    if (isAdminPerson) {
+    // إذا كان دخول من الأدمن (fromAdminEdit=true) أو العضو نفسه أدمن، نظهر الأزرار
+    if (fromAdminEdit || isAdminPerson) {
         document.querySelectorAll('.status-btn').forEach(btn => btn.style.display = 'flex');
+        fromAdminEdit = false;
     } else {
         document.querySelectorAll('.status-btn').forEach(btn => btn.style.display = 'none');
     }
@@ -250,6 +253,7 @@ function verifyAdmin() {
 }
 
 function showAdminDashboard() {
+    fromAdminEdit = false;
     currentMember = null;
     currentMonth = 0;
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
@@ -261,6 +265,7 @@ function showAdminDashboard() {
 }
 
 function editMemberFromAdmin(memberName) {
+    fromAdminEdit = true;  // علامة إننا داخلين من الأدمن
     openMemberDashboard(memberName);
 }
 
