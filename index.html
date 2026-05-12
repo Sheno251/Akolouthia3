@@ -64,6 +64,7 @@
 
     <div id="memberScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
+        <button id="adminPanelBtn" onclick="showAdminDashboard()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
         <div id="memberList" class="member-grid"></div>
     </div>
@@ -126,7 +127,6 @@
 </div>
 
 <script>
-    // ================== رابط Google Sheets الجديد ==================
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxODqTYCr69XECzzU0I9-ELvKrYTcuCJMbuk5mnwyLduHebeDN-WtBlsWjYcMwON1Stlw/exec';
     console.log("✅ Google Sheets API ready");
 </script>
