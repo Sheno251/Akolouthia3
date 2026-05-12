@@ -23,11 +23,12 @@
         .month-tab{padding:8px 16px;background:#e2e8f0;border:none;border-radius:30px;cursor:pointer;white-space:nowrap}
         .month-tab.active{background:#667eea;color:white}
         .attendance-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:12px;margin:20px 0}
-        .status-btn{padding:12px;border:none;border-radius:16px;cursor:pointer;font-weight:bold}
+        .status-btn{padding:12px;border:none;border-radius:16px;cursor:pointer;font-weight:bold;transition:0.2s}
         .present{background:#48bb78;color:white}
         .late{background:#ed8936;color:white}
         .absent{background:#f56565;color:white}
         .excused{background:#4299e1;color:white}
+        .travel{background:#805ad5;color:white}
         .current-status{background:#f1f5f9;padding:16px;border-radius:16px;margin:16px 0;text-align:center}
         .stats{background:#f8fafc;padding:20px;border-radius:20px;margin-top:16px}
         .admin-stats,.members-table{margin:20px 0}
@@ -37,16 +38,22 @@
         .filter-buttons{display:flex;gap:8px;justify-content:center;margin:16px 0}
         .filter-buttons button{background:#e2e8f0;border:none;padding:8px 20px;border-radius:40px;cursor:pointer}
         .filter-buttons button.active{background:#2563eb;color:white}
+        .settings-card{background:#f1f5f9;padding:16px;border-radius:16px;margin:16px 0}
+        .settings-card h3{color:#1e293b;margin-bottom:12px}
+        .time-input{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+        .time-input input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:12px;width:120px}
         .dialog{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000}
         .dialog.hidden{display:none}
         .dialog-content{background:white;padding:24px;border-radius:24px;text-align:center;width:90%;max-width:350px}
         input,select{width:100%;padding:12px;margin:10px 0;border:1px solid #cbd5e1;border-radius:12px}
         .btn-edit{padding:4px 12px;background:#3b82f6;color:white;border:none;border-radius:20px;cursor:pointer}
+        .btn-small{background:#3b82f6;color:white;border:none;padding:6px 12px;border-radius:20px;cursor:pointer}
         @media(max-width:640px){th,td{font-size:12px;padding:8px}}
     </style>
 </head>
 <body>
 <div class="container">
+    <!-- شاشة الدخول -->
     <div id="loginScreen" class="screen">
         <h1>📖 نظام الحضور والغياب</h1>
         <div class="card">
@@ -56,26 +63,30 @@
         </div>
     </div>
 
+    <!-- شاشة الأعضاء -->
     <div id="memberScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
         <div id="memberList" class="member-grid"></div>
     </div>
 
+    <!-- لوحة العضو -->
     <div id="memberDashboard" class="screen hidden">
         <button onclick="backToMemberList()" class="btn-back">← رجوع</button>
         <h2 id="memberName" style="margin-top:12px"></h2>
         <div class="months-tabs" id="memberMonthsTabs"></div>
         <div class="attendance-buttons" id="attendanceButtons">
             <button onclick="recordStatus('present')" class="status-btn present">✅ حاضر</button>
-            <button onclick="showLateDialog()" class="status-btn late">⏰ متأخر</button>
+            <button onclick="recordLateAuto()" class="status-btn late">⏰ متأخر</button>
             <button onclick="recordStatus('absent')" class="status-btn absent">❌ غائب بدون عذر</button>
             <button onclick="recordStatus('excused')" class="status-btn excused">📝 غائب بعذر</button>
+            <button onclick="recordStatus('travel')" class="status-btn travel">✈️ مسافر</button>
         </div>
         <div id="currentStatus" class="current-status"></div>
         <div class="stats"><h3>📊 نسبتي الشخصية</h3><div id="personalStats"></div></div>
     </div>
 
+    <!-- دخول الأدمن -->
     <div id="adminLoginScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <h2 style="margin-top:12px">دخول الأدمن</h2>
@@ -86,9 +97,22 @@
         </div>
     </div>
 
+    <!-- لوحة الأدمن -->
     <div id="adminDashboard" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← خروج</button>
         <h2 style="margin-top:12px">لوحة تحكم الأدمن</h2>
+        
+        <!-- إعدادات الموعد الرسمي -->
+        <div class="settings-card">
+            <h3>⚙️ إعدادات الموعد الرسمي</h3>
+            <div class="time-input">
+                <span>الموعد الحالي:</span>
+                <strong id="currentOfficialTime">09:00</strong>
+                <input type="time" id="newOfficialTime" value="09:00">
+                <button onclick="updateOfficialTime()" class="btn-small">تحديث</button>
+            </div>
+        </div>
+
         <div class="months-tabs" id="adminMonthsTabs"></div>
         <div class="filter-buttons">
             <button id="filterMonthly" class="active">📆 شهري</button>
@@ -103,28 +127,6 @@
             <div id="adminStats"></div>
             <div id="allMembersTable"></div>
         </div>
-    </div>
-</div>
-
-<div id="lateDialog" class="dialog hidden">
-    <div class="dialog-content">
-        <h3>⏰ تسجيل تأخير</h3>
-        <p>الموعد الرسمي: 9:00 صباحاً</p>
-        <input type="time" id="actualTime" value="09:30">
-        <button onclick="recordLate()" class="btn-primary">تسجيل</button>
-        <button onclick="closeLateDialog()" class="btn-secondary">إلغاء</button>
-    </div>
-</div>
-
-<div id="changePasswordDialog" class="dialog hidden">
-    <div class="dialog-content">
-        <h3>🔒 تغيير كلمة المرور</h3>
-        <p style="font-size:14px">متاح فقط لـ <strong>admin1</strong></p>
-        <input type="password" id="currentPass" placeholder="كلمة المرور الحالية">
-        <input type="password" id="newPass" placeholder="كلمة المرور الجديدة">
-        <input type="password" id="confirmNewPass" placeholder="تأكيد كلمة المرور">
-        <button onclick="changeAdminPassword()" class="btn-primary">تغيير</button>
-        <button onclick="closeChangePasswordDialog()" class="btn-secondary">إلغاء</button>
     </div>
 </div>
 
