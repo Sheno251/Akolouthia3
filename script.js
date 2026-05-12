@@ -1,10 +1,5 @@
-// الأسماء الكاملة (12 عضو + 3 أدمن)
-const allNames = [
-    "مارتيورس جمال", "نرمين فرج الله", "ميرنا فام", "بيشوي صفوت", "شنوده نصحي", "سيلفيا طلعت", "سيمون سمعان", "كرستينا ميلاد", "ماري بشاي", "ابانوب فرج الله", "امال عادل", "باسم جابر",  // 12 عضو
-    "هاله عادل", "دميانه سمعان", "فام روماني",",ويصا مرزق","ماري هاني ","مينا فام","فيولا طلعت"  // 3 أدمن
-];
-
-
+// ---------- 19 اسم + 3 أدمن ----------
+const allNames = ["ماريو","بيتر","جورج","مايكل","أندرو","مارك","جون","بول","توماس","فيليب","برثولماوس","متى","سمعان","يعقوب","يوحنا","اندرواس","فيلبس","توما","متى","أدمن1","أدمن2","أدمن3"];
 
 let admins = [
     { username: "admin1", password: "admin123" },
@@ -27,7 +22,7 @@ let dataLoaded = false;
 async function loadDataOnce() {
     if(dataLoaded) return { attendance: attendanceCache };
     try {
-        const res = await fetch(SCRIPT_URL);
+        const res = await fetch(window.SCRIPT_URL);
         const json = await res.json();
         if(json.attendance) attendanceCache = json.attendance;
         dataLoaded = true;
@@ -102,14 +97,17 @@ function calcStats(name, month, filter='monthly') {
 
 async function saveAttendance(record) {
     try {
-        await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
+        await fetch(window.SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
         attendanceCache.push(record);
     } catch(e) { console.error(e); }
 }
 
 // ---------- تسجيل الحضور ----------
 window.recordStatus = async function(status) {
-    if(!currentMember) return;
+    if(!currentMember) {
+        alert("لا يوجد عضو محدد");
+        return;
+    }
     const now = new Date();
     let lateMinutes = 0;
     let actualTime = now.toLocaleTimeString('ar-EG');
@@ -129,10 +127,11 @@ window.recordStatus = async function(status) {
     await saveAttendance(record);
     updateMemberView();
     if(!document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
+    alert(`✅ تم تسجيل ${status === 'present' ? 'الحضور' : status === 'late' ? 'التأخير' : status === 'absent' ? 'الغياب بدون عذر' : status === 'excused' ? 'الغياب بعذر' : 'السفر'} بنجاح`);
 }
 
 window.recordLateAuto = async function() {
-    await recordStatus('late');
+    await window.recordStatus('late');
 }
 
 // ---------- واجهة العضو ----------
