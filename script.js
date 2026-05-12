@@ -10,15 +10,53 @@ let admins = [
     { username: "admin3", password: "admin123" }
 ];
 
+// تحميل كلمات المرور المحفوظة
 const savedAdmins = localStorage.getItem('customAdmins');
 if(savedAdmins) {
     const parsed = JSON.parse(savedAdmins);
     if(parsed.find(a=>a.username==='admin1')) admins = parsed;
 }
 
+// تحميل الموعد الرسمي المحفوظ
+function getOfficialTime() {
+    let time = localStorage.getItem('officialTime');
+    if (!time) {
+        time = '09:00';
+        localStorage.setItem('officialTime', time);
+    }
+    return time;
+}
+
+function updateOfficialTime() {
+    const newTime = document.getElementById('newOfficialTime').value;
+    if (!newTime) return alert('اختر الوقت أولاً');
+    localStorage.setItem('officialTime', newTime);
+    document.getElementById('currentOfficialTime').innerText = newTime;
+    alert(`✅ تم تغيير الموعد الرسمي إلى ${newTime}`);
+}
+
+function calculateLateMinutes() {
+    const officialTime = getOfficialTime();
+    const now = new Date();
+    const [officialHour, officialMinute] = officialTime.split(':').map(Number);
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    let lateMinutes = (currentHour - officialHour) * 60 + (currentMinute - officialMinute);
+    return lateMinutes > 0 ? lateMinutes : 0;
+}
+
 const MONTHS_COUNT = 12;
 let currentMember = null, currentMonth = 0, currentFilter = 'monthly';
 let attendanceCache = [];
+
+// حالة الزر للعرض (بيانات وهمية)
+const statusText = {
+    'present': '✅ حاضر',
+    'late': '⏰ متأخر',
+    'absent': '❌ غائب بدون عذر',
+    'excused': '📝 غائب بعذر',
+    'travel': '✈️ مسافر'
+};
 
 // ---------- Google Sheets API ----------
 async function loadData() {
@@ -33,6 +71,7 @@ async function loadData() {
 async function saveAttendance(record) {
     try {
         await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
+        console.log("تم الحفظ:", record);
     } catch(e) { console.error(e); }
 }
 
@@ -52,32 +91,45 @@ function getMemberRecords(name, month, filter='monthly') {
 async function calcStats(name, month, filter='monthly') {
     await loadData();
     const recs = getMemberRecords(name, month, filter);
-    let present=0, excused=0, absent=0, lateMins=0, lateCount=0;
+    let present=0, late=0, excused=0, absent=0, travel=0;
+    let lateMins=0;
     recs.forEach(r=>{
         const st = r[3];
-        if(st==='present' || st==='late') present++;
-        if(st==='late') { lateCount++; lateMins += parseInt(r[5])||0; }
-        if(st==='excused') excused++;
-        if(st==='absent') absent++;
+        if(st==='present') present++;
+        else if(st==='late') { late++; lateMins += parseInt(r[5])||0; }
+        else if(st==='excused') excused++;
+        else if(st==='absent') absent++;
+        else if(st==='travel') travel++;
     });
     const total = recs.length;
+    const totalPresent = present + late; // حضور (حاضر + متأخر)
     return {
-        presentRate: total ? Math.round(present/total*100) : 0,
+        presentRate: total ? Math.round(totalPresent/total*100) : 0,
         excusedRate: total ? Math.round(excused/total*100) : 0,
         absentRate: total ? Math.round(absent/total*100) : 0,
-        total, lateCount, avgLate: lateCount ? Math.round(lateMins/lateCount) : 0
+        travelRate: total ? Math.round(travel/total*100) : 0,
+        total, lateCount: late, avgLate: late ? Math.round(lateMins/late) : 0
     };
 }
 
-async function recordStatus(status, lateMins=0, actualTime='') {
+// ---------- تسجيل الحضور والغياب ----------
+async function recordStatus(status) {
     if(!currentMember) return;
     const now = new Date();
+    let lateMinutes = 0;
+    let actualTime = now.toLocaleTimeString('ar-EG');
+    
+    if(status === 'late') {
+        lateMinutes = calculateLateMinutes();
+        actualTime = now.toLocaleTimeString('ar-EG');
+    }
+    
     const record = [
         currentMember, currentMonth+1,
         now.toISOString().slice(0,10),
         status,
-        actualTime || now.toLocaleTimeString('ar-EG'),
-        lateMins,
+        actualTime,
+        lateMinutes,
         ''
     ];
     await saveAttendance(record);
@@ -85,18 +137,11 @@ async function recordStatus(status, lateMins=0, actualTime='') {
     if(!document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
 }
 
-async function recordLate() {
-    const actual = document.getElementById('actualTime').value;
-    if(!actual) return alert('أدخل وقت الحضور');
-    const [h,m] = actual.split(':').map(Number);
-    const lateMinutes = Math.max(0, (h-9)*60 + m);
-    await recordStatus('late', lateMinutes, actual);
-    closeLateDialog();
+async function recordLateAuto() {
+    await recordStatus('late');
 }
 
-function showLateDialog() { document.getElementById('lateDialog').classList.remove('hidden'); }
-function closeLateDialog() { document.getElementById('lateDialog').classList.add('hidden'); }
-
+// ---------- واجهة العضو (إخفاء الأزرار للأعضاء العاديين) ----------
 function showMemberList() {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('memberScreen').classList.remove('hidden');
@@ -130,13 +175,18 @@ async function updateMemberView() {
     const statusDiv = document.getElementById('currentStatus');
     if(last){
         let lateInfo = last[3]==='late' ? `<br>⏱️ تأخر ${last[5]} دقيقة` : '';
-        let statusText = {present:'✅ حاضر', late:'⏰ متأخر', absent:'❌ غائب', excused:'📝 غائب بعذر'}[last[3]];
+        let statusText = {
+            'present':'✅ حاضر', 'late':'⏰ متأخر', 
+            'absent':'❌ غائب بدون عذر', 'excused':'📝 غائب بعذر',
+            'travel':'✈️ مسافر'
+        }[last[3]];
         statusDiv.innerHTML = `<strong>آخر تسجيل:</strong><br>${statusText}${lateInfo}<br><small>${last[2]} - ${last[4]}</small>`;
     } else statusDiv.innerHTML = 'لا توجد تسجيلات هذا الشهر';
     document.getElementById('personalStats').innerHTML = `
-        <p>✅ نسبة الحضور: ${stats.presentRate}%</p>
+        <p>✅ نسبة الحضور (حاضر+متأخر): ${stats.presentRate}%</p>
         <p>📝 غياب بعذر: ${stats.excusedRate}%</p>
         <p>❌ غياب بدون عذر: ${stats.absentRate}%</p>
+        <p>✈️ مسافر: ${stats.travelRate}%</p>
         <p>📊 إجمالي التسجيلات: ${stats.total}</p>
         ${stats.lateCount? `<p>⏰ عدد مرات التأخير: ${stats.lateCount} (متوسط ${stats.avgLate} دقيقة)</p>`:''}
     `;
@@ -161,6 +211,7 @@ function renderTabs(containerId, isMember=true){
     }
 }
 
+// ---------- الأدمن --------------------
 function showAdminLogin() {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('adminLoginScreen').classList.remove('hidden');
@@ -180,6 +231,9 @@ function showAdminDashboard(){
     currentMonth=0; currentFilter='monthly';
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('adminDashboard').classList.remove('hidden');
+    // عرض الموعد الرسمي الحالي
+    document.getElementById('currentOfficialTime').innerText = getOfficialTime();
+    document.getElementById('newOfficialTime').value = getOfficialTime();
     renderTabs('adminMonthsTabs', false);
     document.getElementById('filterMonthly').classList.add('active');
     document.getElementById('filterWeekly').classList.remove('active');
@@ -210,24 +264,25 @@ async function updateAdminView(){
             </div>
         </div>
     `;
-    let html = `<div style="overflow-x:auto"><table><thead><th>العضو</th><th>حضور</th><th>غياب بعذر</th><th>غياب بدون عذر</th><th>عدد التأخير</th><th>متوسط التأخير</th><th>إجمالي</th><th>تعديل</th></thead><tbody>`;
+    let html = `<div style="overflow-x:auto"><table><thead><th>العضو</th><th>حضور</th><th>غياب بعذر</th><th>غياب بدون عذر</th><th>مسافر</th><th>عدد التأخير</th><th>متوسط التأخير</th><th>إجمالي</th><th>تعديل</th></thead><tbody>`;
     allNames.forEach((name,i)=>{
         html += `<tr>
             <td style="font-weight:bold">${name}</td>
             <td style="color:#16a34a">${stats[i].presentRate}%</td>
             <td style="color:#3b82f6">${stats[i].excusedRate}%</td>
             <td style="color:#dc2626">${stats[i].absentRate}%</td>
+            <td style="color:#805ad5">${stats[i].travelRate}%</td>
             <td>${stats[i].lateCount}</td>
             <td>${stats[i].avgLate}</td>
             <td>${stats[i].total}</td>
             <td><button class="btn-edit" onclick="editMemberFromAdmin('${name.replace(/'/g, "\\'")}')">✏️ تعديل</button></td>
         </tr>`;
     });
-    html += `</tbody><table></div>`;
+    html += `</tbody></table></div>`;
     document.getElementById('allMembersTable').innerHTML = html;
 }
 
-// فلتر شهري/أسبوعي
+// ---------- فلتر شهري/أسبوعي ----------
 document.addEventListener('click', (e)=>{
     if(e.target.id === 'filterMonthly'){
         currentFilter = 'monthly';
@@ -245,13 +300,31 @@ document.addEventListener('click', (e)=>{
     if(e.target.id === 'downloadPDFBtn') downloadPDF();
 });
 
+// ---------- تغيير كلمة المرور (لأدمن1 فقط) ----------
 function showChangePasswordDialog() {
-    document.getElementById('changePasswordDialog').classList.remove('hidden');
+    const dialog = document.createElement('div');
+    dialog.className = 'dialog';
+    dialog.id = 'tempPasswordDialog';
+    dialog.innerHTML = `
+        <div class="dialog-content">
+            <h3>🔒 تغيير كلمة المرور</h3>
+            <p style="font-size:14px">متاح فقط لـ <strong>admin1</strong></p>
+            <input type="password" id="currentPass" placeholder="كلمة المرور الحالية">
+            <input type="password" id="newPass" placeholder="كلمة المرور الجديدة">
+            <input type="password" id="confirmNewPass" placeholder="تأكيد كلمة المرور">
+            <button onclick="changeAdminPasswordTemp()" class="btn-primary">تغيير</button>
+            <button onclick="closeTempDialog()" class="btn-secondary">إلغاء</button>
+        </div>
+    `;
+    document.body.appendChild(dialog);
 }
-function closeChangePasswordDialog() {
-    document.getElementById('changePasswordDialog').classList.add('hidden');
+
+function closeTempDialog() {
+    const dialog = document.getElementById('tempPasswordDialog');
+    if(dialog) dialog.remove();
 }
-function changeAdminPassword() {
+
+function changeAdminPasswordTemp() {
     const current = document.getElementById('currentPass').value;
     const newPass = document.getElementById('newPass').value;
     const confirm = document.getElementById('confirmNewPass').value;
@@ -261,9 +334,10 @@ function changeAdminPassword() {
     admin1.password = newPass;
     localStorage.setItem('customAdmins', JSON.stringify(admins));
     alert('✅ تم تغيير كلمة المرور بنجاح');
-    closeChangePasswordDialog();
+    closeTempDialog();
 }
 
+// ---------- PDF وطباعة ----------
 function downloadPDF() {
     const element = document.getElementById('pdf-content');
     if(element) {
@@ -277,6 +351,7 @@ function downloadPDF() {
     }
 }
 
+// ---------- الرجوع للصفحة الرئيسية ----------
 function backToLogin() {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     document.getElementById('loginScreen').classList.remove('hidden');
