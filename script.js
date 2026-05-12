@@ -156,7 +156,7 @@ function showNoteDialog(memberName) {
     dialog.innerHTML = `
         <div class="dialog-content">
             <h3>📝 ملاحظات عن ${memberName}</h3>
-            <textarea id="memberNote" rows="4" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">${currentNote}</textarea>
+            <textarea id="memberNote" rows="6" style="width:100%; padding:12px; border-radius:12px; border:1px solid #ccc; font-size:14px; min-height:150px;">${currentNote}</textarea>
             <br><br>
             <button onclick="saveNote('${memberName}')" class="btn-primary">💾 حفظ</button>
             <button onclick="closeNoteDialog()" class="btn-secondary">إلغاء</button>
@@ -230,6 +230,23 @@ function getLatecomersWithTime(month, filter='weekly') {
         });
     }
     return lateRecords;
+}
+
+// ---------- دالة تنسيق التاريخ ----------
+function formatDateRange() {
+    const today = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+    const todayFormatted = today.toLocaleDateString('ar-EG', options);
+    
+    if (currentFilter === 'weekly') {
+        const daysToLastSat = (today.getDay() + 1) % 7;
+        const lastSaturday = new Date(today);
+        lastSaturday.setDate(today.getDate() - daysToLastSat);
+        const saturdayFormatted = lastSaturday.toLocaleDateString('ar-EG', options);
+        return `📅 التقرير الأسبوعي - ${saturdayFormatted}`;
+    } else {
+        return `📅 التقرير الشهري - شهر ${currentMonth + 1} - ${todayFormatted}`;
+    }
 }
 
 // ---------- عرض الأعضاء ----------
@@ -411,8 +428,12 @@ function editMemberFromAdmin(memberName) {
 
 async function updateAdminView() {
     await loadDataFromSheet();
-    const stats = [];
     
+    // تحديث نطاق التاريخ
+    const dateRangeSpan = document.getElementById('reportDateRange');
+    if (dateRangeSpan) dateRangeSpan.innerHTML = formatDateRange();
+    
+    const stats = [];
     for (const name of allNames) {
         stats.push(await calculatePersonalStats(name, currentMonth));
     }
@@ -487,21 +508,21 @@ async function updateAdminView() {
         const s = stats[i];
         const bgColor = i % 2 === 0 ? '#f7fafc' : 'white';
         const memberNotes = getNoteForMember(name, currentMonth);
-        const notePreview = memberNotes.length > 40 ? memberNotes.substring(0, 40) + '...' : memberNotes;
+        const notePreview = memberNotes.length > 80 ? memberNotes.substring(0, 80) + '...' : memberNotes;
         
         html += `<tr style="background:${bgColor};">
-            <td style="padding:10px; font-weight:bold;">${name}</td>
-            <td style="padding:10px; color:#48bb78;">${s.presentRate}%</td>
-            <td style="padding:10px; color:#4299e1;">${s.excusedRate}%</td>
-            <td style="padding:10px; color:#f56565;">${s.absentRate}%</td>
-            <td style="padding:10px; color:#805ad5;">${s.travelRate}%</td>
-            <td style="padding:10px;">${s.lateCount}</td>
-            <td style="padding:10px;">${s.avgLate}</td>
-            <td style="padding:10px; min-width:200px; max-width:250px; word-break:break-word; background:#fefce8;">
+            <td style="padding:10px; font-weight:bold;">${name}鲜
+            <td style="padding:10px; color:#48bb78;">${s.presentRate}%鲜
+            <td style="padding:10px; color:#4299e1;">${s.excusedRate}%鲜
+            <td style="padding:10px; color:#f56565;">${s.absentRate}%鲜
+            <td style="padding:10px; color:#805ad5;">${s.travelRate}%鲜
+            <td style="padding:10px;">${s.lateCount}鲜
+            <td style="padding:10px;">${s.avgLate}鲜
+            <td style="padding:12px; min-width:280px; max-width:350px; word-break:break-word; background:#fefce8; font-size:14px; line-height:1.5;">
                 ${notePreview || '—'}
-                <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:8px; display:inline-block; background:#eab308; color:#1e293b;">📝 ملاحظة</button>
-            </td>
-            <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button></td>
+                <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:8px; display:inline-block; background:#eab308; color:#1e293b; padding:6px 12px;">📝 ملاحظة</button>
+            鲜
+            <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button>鲜
         </tr>`;
     }
     
@@ -574,11 +595,25 @@ function downloadPDF() {
     const element = document.getElementById('pdf-content');
     if (element && typeof html2pdf !== 'undefined') {
         const originalHTML = element.innerHTML;
+        const today = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+        const todayFormatted = today.toLocaleDateString('ar-EG', options);
+        let periodText = '';
+        
+        if (currentFilter === 'weekly') {
+            const daysToLastSat = (today.getDay() + 1) % 7;
+            const lastSaturday = new Date(today);
+            lastSaturday.setDate(today.getDate() - daysToLastSat);
+            periodText = `تقرير أسبوعي - ${lastSaturday.toLocaleDateString('ar-EG', options)}`;
+        } else {
+            periodText = `تقرير شهري - شهر ${currentMonth + 1}`;
+        }
+        
         element.innerHTML = `
             <div style="text-align:center; margin-bottom:20px;">
                 <h1 style="color:#667eea;">أكولوثيا – نظام المتابعة</h1>
-                <h2>${currentFilter === 'monthly' ? `تقرير شهر ${currentMonth+1}` : 'تقرير أسبوعي'}</h2>
-                <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                <h2>${periodText}</h2>
+                <p>تاريخ الطباعة: ${todayFormatted}</p>
                 <hr>
             </div>
             ${originalHTML}
@@ -586,7 +621,7 @@ function downloadPDF() {
         
         html2pdf().set({
             margin: 10,
-            filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعي'}.pdf`,
+            filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعי'}_${today.toISOString().slice(0,10)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
