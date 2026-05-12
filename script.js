@@ -7,7 +7,7 @@ const allNames = [
 
 // الأدمن (3 أدمن)
 const admins = [
-    { username: "shenouda", password: "admin" },
+    { username: "shenouda", password: "admin123" },
     { username: "admin2", password: "admin123" },
     { username: "admin3", password: "admin123" }
 ];
@@ -391,17 +391,29 @@ function changeAdminPasswordTemp() {
     closeTempDialog();
 }
 
-// ---------- PDF ----------
 function downloadPDF() {
     const element = document.getElementById('pdf-content');
     if (element && typeof html2pdf !== 'undefined') {
+        const originalHTML = element.innerHTML;
+        element.innerHTML = `
+            <div style="text-align:center; margin-bottom:20px;">
+                <h1 style="color:#667eea;">أكولوثيا – نظام المتابعة</h1>
+                <h2>${currentFilter === 'monthly' ? `تقرير شهر ${currentMonth+1}` : 'تقرير أسبوعي'}</h2>
+                <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                <hr>
+            </div>
+            ${originalHTML}
+        `;
+        
         html2pdf().set({
             margin: 10,
             filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعي'}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-        }).from(element).save();
+        }).from(element).save().then(() => {
+            element.innerHTML = originalHTML;
+        });
     } else {
         alert('مكتبة PDF لم يتم تحميلها بعد');
     }
