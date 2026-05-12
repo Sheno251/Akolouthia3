@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>أكولوثيا – نظام المتابعة</title>
+    <title>نظام الحضور والغياب</title>
+    <link rel="stylesheet" href="style.css">
     <style>
+        /* كل الستايلات اللي كانت شغالة معاك */
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui}
         body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
         .container{max-width:1200px;margin:0 auto}
         .screen{background:white;border-radius:24px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:fadeIn 0.3s}
         .hidden{display:none}
         @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        h1{background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;margin-bottom:24px}
+        h1{color:#1e293b;text-align:center;margin-bottom:24px}
         .card{text-align:center;padding:20px}
         .btn-primary,.btn-secondary,.btn-back{padding:12px 24px;margin:8px;border:none;border-radius:30px;cursor:pointer;font-weight:bold;transition:0.2s}
         .btn-primary{background:#667eea;color:white}
@@ -23,7 +25,7 @@
         .month-tab{padding:8px 16px;background:#e2e8f0;border:none;border-radius:30px;cursor:pointer;white-space:nowrap}
         .month-tab.active{background:#667eea;color:white}
         .attendance-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:12px;margin:20px 0}
-        .status-btn{padding:12px;border:none;border-radius:16px;cursor:pointer;font-weight:bold;transition:0.2s}
+        .status-btn{padding:12px;border:none;border-radius:16px;cursor:pointer;font-weight:bold}
         .present{background:#48bb78;color:white}
         .late{background:#ed8936;color:white}
         .absent{background:#f56565;color:white}
@@ -53,9 +55,8 @@
 </head>
 <body>
 <div class="container">
-    <!-- شاشة الدخول -->
     <div id="loginScreen" class="screen">
-        <h1>📖 أكولوثيا – نظام المتابعة</h1>
+        <h1>📖 نظام الحضور والغياب</h1>
         <div class="card">
             <h2>اختر هويتك</h2>
             <button onclick="showMemberList()" class="btn-primary">👤 عضو</button>
@@ -63,18 +64,14 @@
         </div>
     </div>
 
-    <!-- شاشة اختيار العضو (للعادي وللأدمن) -->
     <div id="memberScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
-        <button id="adminPanelBtn" onclick="showAdminDashboard()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
         <div id="memberList" class="member-grid"></div>
     </div>
 
-    <!-- لوحة العضو (تظهر فيها الأزرار للأدمن فقط) -->
     <div id="memberDashboard" class="screen hidden">
         <button onclick="backToMemberList()" class="btn-back">← رجوع</button>
-        <button id="backToAdminBtn" onclick="backToAdminPanel()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 id="memberName" style="margin-top:12px"></h2>
         <div class="months-tabs" id="memberMonthsTabs"></div>
         <div class="attendance-buttons" id="attendanceButtons">
@@ -88,7 +85,6 @@
         <div class="stats"><h3>📊 نسبتي الشخصية</h3><div id="personalStats"></div></div>
     </div>
 
-    <!-- شاشة دخول الأدمن -->
     <div id="adminLoginScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <h2 style="margin-top:12px">دخول الأدمن</h2>
@@ -99,9 +95,8 @@
         </div>
     </div>
 
-    <!-- لوحة تحكم الأدمن (الإحصائيات والتقارير) -->
     <div id="adminDashboard" class="screen hidden">
-        <button onclick="backToMemberListForAdmin()" class="btn-back">← رجوع للأعضاء</button>
+        <button onclick="backToLogin()" class="btn-back">← خروج</button>
         <h2 style="margin-top:12px">لوحة تحكم الأدمن</h2>
         
         <div class="settings-card">
@@ -132,7 +127,9 @@
 </div>
 
 <script>
-    window.SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzP38961HKB4JpJFb1tLavu4wbX3tzoOiDRNzgL2EDqbiPrATqDINMORD0TzhAK4ED7/exec';
+    // ================== رابط Google Sheets API ==================
+    // الرابط ده هتغيره بالرابط الجديد اللي يظهرلك بعد ما تنشر الـ Web App
+    const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_NEW_SCRIPT_URL/exec';
     console.log("✅ Google Sheets API ready");
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
