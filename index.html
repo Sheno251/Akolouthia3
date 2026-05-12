@@ -73,11 +73,11 @@
         <h2 id="memberName" style="margin-top:12px"></h2>
         <div class="months-tabs" id="memberMonthsTabs"></div>
         <div class="attendance-buttons" id="attendanceButtons">
-            <button class="status-btn present" onclick="recordStatus('present')">✅ حاضر</button>
-            <button class="status-btn late" onclick="recordLateAuto()">⏰ متأخر</button>
-            <button class="status-btn absent" onclick="recordStatus('absent')">❌ غائب بدون عذر</button>
-            <button class="status-btn excused" onclick="recordStatus('excused')">📝 غائب بعذر</button>
-            <button class="status-btn travel" onclick="recordStatus('travel')">✈️ مسافر</button>
+            <button class="status-btn present" onclick="window.recordStatus('present')">✅ حاضر</button>
+            <button class="status-btn late" onclick="window.recordLateAuto()">⏰ متأخر</button>
+            <button class="status-btn absent" onclick="window.recordStatus('absent')">❌ غائب بدون عذر</button>
+            <button class="status-btn excused" onclick="window.recordStatus('excused')">📝 غائب بعذر</button>
+            <button class="status-btn travel" onclick="window.recordStatus('travel')">✈️ مسافر</button>
         </div>
         <div id="currentStatus" class="current-status"></div>
         <div class="stats"><h3>📊 نسبتي الشخصية</h3><div id="personalStats"></div></div>
@@ -125,7 +125,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGrLVKl0cnbpf5F4KxuExRUNzgxqyTSZjoQsLcxSjASy-QDXPotl8nXj1_r4KMHDi4EQ/exec';
+    window.SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGrLVKl0cnbpf5F4KxuExRUNzgxqyTSZjoQsLcxSjASy-QDXPotl8nXj1_r4KMHDi4EQ/exec';
     console.log("✅ Google Sheets API ready");
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
