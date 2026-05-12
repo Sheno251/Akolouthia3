@@ -34,7 +34,7 @@ let dataLoaded = false;
 async function loadDataFromSheet() {
     if(dataLoaded) return attendanceCache;
     try {
-        const res = await fetch(window.SCRIPT_URL);
+        const res = await fetch(SCRIPT_URL);
         const json = await res.json();
         if(json.attendance) attendanceCache = json.attendance;
         dataLoaded = true;
@@ -44,7 +44,7 @@ async function loadDataFromSheet() {
 
 async function saveToSheet(record) {
     try {
-        await fetch(window.SCRIPT_URL, { 
+        await fetch(SCRIPT_URL, { 
             method: 'POST', 
             mode: 'no-cors', 
             body: JSON.stringify(record) 
@@ -65,12 +65,9 @@ function getOfficialTime() {
 
 function updateOfficialTime() {
     const newTime = document.getElementById('newOfficialTime').value;
-    if (!newTime) {
-        alert('اختر الوقت أولاً');
-        return;
-    }
+    if (!newTime) return alert('اختر الوقت أولاً');
     localStorage.setItem('officialTime', newTime);
-    document.getElementById('currentOfficialTime').textContent = newTime;
+    document.getElementById('currentOfficialTime').innerText = newTime;
     alert(`✅ تم تغيير الموعد الرسمي إلى ${newTime}`);
 }
 
@@ -103,7 +100,7 @@ async function recordStatus(status) {
         status,
         actualTime,
         lateMinutes,
-        ""  // note
+        ""
     ];
     
     await saveToSheet(record);
@@ -235,12 +232,10 @@ function getLatecomersWithTime(month, filter='weekly') {
     return lateRecords;
 }
 
-// ---------- عرض الأعضاء (للعادي) ----------
+// ---------- عرض الأعضاء ----------
 function showMemberList() {
-    // إخفاء زر لوحة الأدمن
     const adminBtn = document.getElementById('adminPanelBtn');
     if (adminBtn) adminBtn.style.display = 'none';
-    // إخفاء زر الرجوع للأدمن في صفحة العضو
     const backToAdminBtn = document.getElementById('backToAdminBtn');
     if (backToAdminBtn) backToAdminBtn.style.display = 'none';
     
@@ -263,9 +258,7 @@ function showMemberList() {
     });
 }
 
-// ---------- عرض الأعضاء للأدمن ----------
 function showMemberListForAdmin() {
-    // إظهار زر لوحة الأدمن
     const adminBtn = document.getElementById('adminPanelBtn');
     if (adminBtn) adminBtn.style.display = 'inline-block';
     
@@ -299,7 +292,6 @@ function openMemberDashboard(name) {
     document.getElementById('memberDashboard').classList.remove('hidden');
     document.getElementById('memberName').textContent = name;
     
-    // إظهار أو إخفاء زر الرجوع للأدمن
     const backToAdminBtn = document.getElementById('backToAdminBtn');
     if (backToAdminBtn) {
         backToAdminBtn.style.display = (isAdminLoggedIn || fromAdminEdit || isAdminPerson) ? 'inline-block' : 'none';
@@ -369,7 +361,6 @@ function renderMonthsTabs(containerId, isMember = true) {
         const btn = document.createElement('button');
         btn.className = `month-tab ${i === currentMonth ? 'active' : ''}`;
         btn.textContent = `شهر ${i + 1}`;
-        btn.dataset.month = i;
         btn.onclick = () => {
             document.querySelectorAll(`#${containerId} .month-tab`).forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
