@@ -487,7 +487,7 @@ async function updateAdminView() {
         const s = stats[i];
         const bgColor = i % 2 === 0 ? '#f7fafc' : 'white';
         const memberNotes = getNoteForMember(name, currentMonth);
-        const notePreview = memberNotes.length > 30 ? memberNotes.substring(0, 30) + '...' : memberNotes;
+        const notePreview = memberNotes.length > 40 ? memberNotes.substring(0, 40) + '...' : memberNotes;
         
         html += `<tr style="background:${bgColor};">
             <td style="padding:10px; font-weight:bold;">${name}</td>
@@ -497,9 +497,9 @@ async function updateAdminView() {
             <td style="padding:10px; color:#805ad5;">${s.travelRate}%</td>
             <td style="padding:10px;">${s.lateCount}</td>
             <td style="padding:10px;">${s.avgLate}</td>
-            <td style="padding:10px; max-width:150px; word-break:break-word;">
+            <td style="padding:10px; min-width:200px; max-width:250px; word-break:break-word; background:#fefce8;">
                 ${notePreview || '—'}
-                <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:5px; display:block;">✏️ إضافة ملاحظة</button>
+                <button class="btn-edit" onclick="showNoteDialog('${name}')" style="margin-top:8px; display:inline-block; background:#eab308; color:#1e293b;">📝 ملاحظة</button>
             </td>
             <td style="padding:10px;"><button class="btn-edit" onclick="editMemberFromAdmin('${name}')">تعديل</button></td>
         </tr>`;
