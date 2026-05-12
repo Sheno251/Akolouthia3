@@ -7,7 +7,7 @@ const allNames = [
 
 // الأدمن (3 أدمن)
 const admins = [
-    { username: "admin1", password: "admin123" },
+    { username: "shenouda", password: "admin" },
     { username: "admin2", password: "admin123" },
     { username: "admin3", password: "admin123" }
 ];
