@@ -103,7 +103,6 @@ async function calculateFullStats(name, month) {
     let totalLateMinutes = 0;
     let lastLateRecord = null;
     let lastRecord = null;
-    let allLateTimes = [];
     
     records.forEach(r => {
         const status = r[3];
@@ -111,7 +110,6 @@ async function calculateFullStats(name, month) {
         if (status === 'late') { 
             lateCount++; 
             totalLateMinutes += parseInt(r[5]) || 0;
-            allLateTimes.push({ time: r[4], date: r[2], minutes: r[5] });
             if (!lastLateRecord || new Date(r[2]) > new Date(lastLateRecord[2])) lastLateRecord = r;
         }
         if (status === 'excused') excusedCount++;
@@ -126,21 +124,12 @@ async function calculateFullStats(name, month) {
     const absentRate = total ? Math.round((absentCount / total) * 100) : 0;
     const travelRate = total ? Math.round((travelCount / total) * 100) : 0;
     
-    let lastLateInfo = null;
-    if (lastLateRecord) {
-        lastLateInfo = {
-            time: lastLateRecord[4],
-            date: lastLateRecord[2],
-            minutes: lastLateRecord[5]
-        };
-    }
-    
     return {
         presentCount, lateCount, excusedCount, absentCount, travelCount,
         presentRate, excusedRate, absentRate, travelRate,
         total, totalPresent, totalLateMinutes, lateCount,
         avgLate: lateCount ? Math.round(totalLateMinutes / lateCount) : 0,
-        lastRecord, lastLateInfo, allLateTimes
+        lastRecord, lastLateRecord
     };
 }
 
@@ -216,52 +205,15 @@ function formatDateRange() {
     return `📅 التقرير الشهري - شهر ${currentMonth + 1} - ${today.toLocaleDateString('ar-EG', options)}`;
 }
 
-// ---------- عرض المربعات الفاخرة ----------
+// ---------- عرض المربعات في التقرير (أسماء فقط للطباعة) ----------
 async function displayCards() {
     await loadDataFromSheet();
     let html = '';
     for (const name of allNames.slice(0, 19)) {
-        const s = await calculateFullStats(name, currentFilter === 'weekly' ? currentMonth : currentMonth);
-        const notes = getNoteForMember(name, currentMonth);
-        const notePreview = notes.length > 70 ? notes.substring(0, 70) + '...' : notes;
-        
-        let lastLateHtml = '';
-        if (s.lastLateInfo) {
-            lastLateHtml = `<div class="late-details">
-                <div class="late-minutes">⏰ تأخر ${s.lastLateInfo.minutes} دقيقة</div>
-                <div class="late-time">🕒 حضر الساعة ${s.lastLateInfo.time} - ${s.lastLateInfo.date}</div>
-            </div>`;
-        }
-        
-        let lastRecordHtml = '';
-        if (s.lastRecord) {
-            const icons = { present:'✅', late:'⏰', absent:'❌', excused:'📝', travel:'✈️' };
-            const texts = { present:'حاضر', late:'متأخر', absent:'غائب', excused:'غائب بعذر', travel:'مسافر' };
-            lastRecordHtml = `<div class="last-record">📌 آخر تسجيل: ${icons[s.lastRecord[3]]} ${texts[s.lastRecord[3]]} - ${s.lastRecord[2]}</div>`;
-        }
-        
         html += `
             <div class="stat-card">
                 <a href="javascript:editMemberFromAdmin('${name}')" class="card-link">
                     <div class="card-header">👤 ${name}</div>
-                    <div class="card-body">
-                        <div class="stats-row">
-                            <div class="stat-box"><div class="stat-number ${s.presentRate >= 70 ? 'good' : 'warning'}">${s.presentRate}%</div><div class="stat-label-sm">الحضور</div></div>
-                            <div class="stat-box"><div class="stat-number">${s.total}</div><div class="stat-label-sm">اجتماعات</div></div>
-                            <div class="stat-box"><div class="stat-number ${s.absentRate > 20 ? 'bad' : ''}">${s.absentRate}%</div><div class="stat-label-sm">غياب</div></div>
-                        </div>
-                        <div class="details-grid">
-                            <div class="detail-item"><span class="detail-icon">✅</span><span class="detail-text">حاضر: <span>${s.presentCount}</span></span></div>
-                            <div class="detail-item"><span class="detail-icon">⏰</span><span class="detail-text">متأخر: <span>${s.lateCount}</span></span></div>
-                            <div class="detail-item"><span class="detail-icon">❌</span><span class="detail-text">غياب بدون عذر: <span>${s.absentCount}</span></span></div>
-                            <div class="detail-item"><span class="detail-icon">📝</span><span class="detail-text">غياب بعذر: <span>${s.excusedCount}</span></span></div>
-                            <div class="detail-item"><span class="detail-icon">✈️</span><span class="detail-text">مسافر: <span>${s.travelCount}</span></span></div>
-                            <div class="detail-item"><span class="detail-icon">⏱️</span><span class="detail-text">متوسط التأخير: <span>${s.avgLate} د</span></span></div>
-                        </div>
-                        ${lastLateHtml}
-                        ${lastRecordHtml}
-                        ${notePreview ? `<div class="notes-preview">📝 ${notePreview}</div>` : ''}
-                    </div>
                 </a>
             </div>
         `;
@@ -277,7 +229,7 @@ function displayWeeklyLatecomers() {
         return;
     }
     let html = `<div class="latecomers-box"><h3>⏰ المتأخرون هذا الأسبوع</h3><table><thead><tr><th>الاسم</th><th>وقت الحضور</th><th>التأخير(دق)</th><th>التاريخ</th></tr></thead><tbody>`;
-    latecomers.forEach(l => { html += `<tr><td>${l.name}</td><td>${l.time}</td><td>${l.minutes}</td><td>${l.date}</td></tr>`; });
+    latecomers.forEach(l => { html += `<tr><td>${l.name}</td><td>${l.time}鲜<td>${l.minutes}鲜<td>${l.date}鲜</tr>`; });
     html += `</tbody></table></div>`;
     document.getElementById('weeklyLatecomers').innerHTML = html;
 }
@@ -354,6 +306,7 @@ async function updateMemberView() {
     } else statusDiv.innerHTML = 'لا توجد تسجيلات لهذا الشهر';
     const stats = await calculateFullStats(currentMember, currentMonth);
     const lastLate = records.filter(r => r[3] === 'late').pop();
+    const notes = getNoteForMember(currentMember, currentMonth);
     document.getElementById('personalStats').innerHTML = `
         <p>✅ الحضور: ${stats.presentCount} مرة (${stats.presentRate}%)</p>
         <p>⏰ متأخر: ${stats.lateCount} مرة (متوسط ${stats.avgLate} دقيقة)</p>
@@ -362,6 +315,7 @@ async function updateMemberView() {
         <p>✈️ مسافر: ${stats.travelCount} مرة (${stats.travelRate}%)</p>
         <p>📊 إجمالي التسجيلات: ${stats.total}</p>
         ${lastLate ? `<p>⏱️ آخر تأخير: حضر الساعة ${lastLate[4]} بتاريخ ${lastLate[2]}</p>` : ''}
+        ${notes ? `<p>📝 ملاحظات: ${notes}</p>` : ''}
     `;
 }
 
@@ -535,8 +489,16 @@ function downloadPDF() {
     if (element && typeof html2pdf !== 'undefined') {
         const original = element.innerHTML;
         const today = new Date();
-        const period = currentFilter === 'weekly' ? `تقرير أسبوعي - ${new Date(today.setDate(today.getDate() - ((today.getDay()+1)%7))).toLocaleDateString('ar-EG')}` : `تقرير شهري - شهر ${currentMonth+1}`;
-        element.innerHTML = `<div style="text-align:center;margin-bottom:20px"><h1 style="color:#667eea">أكولوثيا – نظام المتابعة</h1><h2>${period}</h2><p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p><hr></div>${original}`;
+        let period = '';
+        if (currentFilter === 'weekly') {
+            const daysToLastSat = (today.getDay() + 1) % 7;
+            const lastSaturday = new Date(today);
+            lastSaturday.setDate(today.getDate() - daysToLastSat);
+            period = `تقرير أسبوعي - ${lastSaturday.toLocaleDateString('ar-EG')}`;
+        } else {
+            period = `تقرير شهري - شهر ${currentMonth+1}`;
+        }
+        element.innerHTML = `<div style="text-align:center;margin-bottom:20px"><h1 style="color:#667eea">أكولوثيا – نظام المتابعة</h1><h2>${period}</h2><p>تاريخ الطباعة: ${today.toLocaleDateString('ar-EG')}</p><hr></div>${original}`;
         html2pdf().set({ margin: 10, filename: `تقرير_${currentFilter === 'monthly' ? `شهر_${currentMonth+1}` : 'اسبوعي'}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } }).from(element).save().then(() => element.innerHTML = original);
     }
 }
