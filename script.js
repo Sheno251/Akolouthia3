@@ -103,6 +103,7 @@ async function calculateFullStats(name, month) {
     let totalLateMinutes = 0;
     let lastLateRecord = null;
     let lastRecord = null;
+    let allNotes = [];
     
     records.forEach(r => {
         const status = r[3];
@@ -115,6 +116,7 @@ async function calculateFullStats(name, month) {
         if (status === 'excused') excusedCount++;
         if (status === 'absent') absentCount++;
         if (status === 'travel') travelCount++;
+        if (status === 'note' && r[6]) allNotes.push(r[6]);
         if (!lastRecord || new Date(r[2]) > new Date(lastRecord[2])) lastRecord = r;
     });
     
@@ -129,15 +131,16 @@ async function calculateFullStats(name, month) {
         presentRate, excusedRate, absentRate, travelRate,
         total, totalPresent, totalLateMinutes, lateCount,
         avgLate: lateCount ? Math.round(totalLateMinutes / lateCount) : 0,
-        lastRecord, lastLateRecord
+        lastRecord, lastLateRecord, allNotes
     };
 }
 
 // ---------- دوال الملاحظات ----------
 function getNoteForMember(memberName, month) {
     const memberRecords = attendanceCache.filter(r => r[0] === memberName && r[1] === month + 1);
-    const notes = memberRecords.filter(r => r[6] && r[6].trim() !== '').map(r => r[6]);
-    return notes.join('\n---\n');
+    const notes = memberRecords.filter(r => r[6] && r[6].trim() !== '' && r[3] !== 'note').map(r => r[6]);
+    const noteRecords = memberRecords.filter(r => r[3] === 'note' && r[6]).map(r => r[6]);
+    return [...notes, ...noteRecords].join('\n---\n');
 }
 
 function showNoteDialog(memberName) {
@@ -147,8 +150,8 @@ function showNoteDialog(memberName) {
     dialog.id = 'noteDialog';
     dialog.innerHTML = `
         <div class="dialog-content">
-            <h3>📝 ملاحظات</h3>
-            <textarea id="memberNote" rows="5">${currentNote.replace(/</g, '&lt;')}</textarea>
+            <h3>📝 ملاحظات عن ${memberName}</h3>
+            <textarea id="memberNote" rows="5" placeholder="اكتب ملاحظاتك هنا...">${currentNote.replace(/</g, '&lt;')}</textarea>
             <button onclick="saveNote('${memberName}')" class="btn-primary">💾 حفظ</button>
             <button onclick="closeNoteDialog()" class="btn-secondary">إلغاء</button>
         </div>
@@ -166,6 +169,7 @@ async function saveNote(memberName) {
     await saveToSheet(record);
     await loadDataFromSheet();
     if(document.getElementById('adminDashboard') && !document.getElementById('adminDashboard').classList.contains('hidden')) updateAdminView();
+    updateMemberView();
     closeNoteDialog();
     alert('✅ تم حفظ الملاحظة');
 }
@@ -181,7 +185,7 @@ function getMemberRecords(name, month, filter='monthly') {
         const saturdayStr = lastSaturday.toISOString().slice(0,10);
         records = records.filter(r => r[2] === saturdayStr);
     }
-    return records;
+    return records.filter(r => r[3] !== 'note');
 }
 
 function getLatecomersWithTime(month, filter='weekly') {
@@ -205,15 +209,52 @@ function formatDateRange() {
     return `📅 التقرير الشهري - شهر ${currentMonth + 1} - ${today.toLocaleDateString('ar-EG', options)}`;
 }
 
-// ---------- عرض المربعات في التقرير (أسماء فقط للطباعة) ----------
+// ---------- عرض المربعات في التقرير ----------
 async function displayCards() {
     await loadDataFromSheet();
     let html = '';
     for (const name of allNames.slice(0, 19)) {
+        const s = await calculateFullStats(name, currentFilter === 'weekly' ? currentMonth : currentMonth);
+        const notes = getNoteForMember(name, currentMonth);
+        const notePreview = notes.length > 80 ? notes.substring(0, 80) + '...' : notes;
+        
+        let lastLateHtml = '';
+        if (s.lastLateRecord) {
+            lastLateHtml = `<div class="late-details">
+                <div class="late-minutes">⏰ تأخر ${s.lastLateRecord[5]} دقيقة</div>
+                <div class="late-time">🕒 حضر الساعة ${s.lastLateRecord[4]} - ${s.lastLateRecord[2]}</div>
+            </div>`;
+        }
+        
+        let lastRecordHtml = '';
+        if (s.lastRecord) {
+            const icons = { present:'✅', late:'⏰', absent:'❌', excused:'📝', travel:'✈️' };
+            const texts = { present:'حاضر', late:'متأخر', absent:'غائب', excused:'غائب بعذر', travel:'مسافر' };
+            lastRecordHtml = `<div class="last-record">📌 آخر تسجيل: ${icons[s.lastRecord[3]]} ${texts[s.lastRecord[3]]} - ${s.lastRecord[2]}</div>`;
+        }
+        
         html += `
             <div class="stat-card">
                 <a href="javascript:editMemberFromAdmin('${name}')" class="card-link">
                     <div class="card-header">👤 ${name}</div>
+                    <div class="card-body">
+                        <div class="stats-row">
+                            <div class="stat-box"><div class="stat-number ${s.presentRate >= 70 ? 'good' : 'warning'}">${s.presentRate}%</div><div class="stat-label-sm">الحضور</div></div>
+                            <div class="stat-box"><div class="stat-number">${s.total}</div><div class="stat-label-sm">اجتماعات</div></div>
+                            <div class="stat-box"><div class="stat-number ${s.absentRate > 20 ? 'bad' : ''}">${s.absentRate}%</div><div class="stat-label-sm">غياب</div></div>
+                        </div>
+                        <div class="details-grid">
+                            <div class="detail-item"><span class="detail-icon">✅</span><span class="detail-text">حاضر: <span>${s.presentCount}</span></span></div>
+                            <div class="detail-item"><span class="detail-icon">⏰</span><span class="detail-text">متأخر: <span>${s.lateCount}</span></span></div>
+                            <div class="detail-item"><span class="detail-icon">❌</span><span class="detail-text">غياب بدون عذر: <span>${s.absentCount}</span></span></div>
+                            <div class="detail-item"><span class="detail-icon">📝</span><span class="detail-text">غياب بعذر: <span>${s.excusedCount}</span></span></div>
+                            <div class="detail-item"><span class="detail-icon">✈️</span><span class="detail-text">مسافر: <span>${s.travelCount}</span></span></div>
+                            <div class="detail-item"><span class="detail-icon">⏱️</span><span class="detail-text">متوسط التأخير: <span>${s.avgLate} د</span></span></div>
+                        </div>
+                        ${lastLateHtml}
+                        ${lastRecordHtml}
+                        ${notePreview ? `<div class="notes-preview" onclick="event.stopPropagation(); showNoteDialog('${name}')">📝 ${notePreview}</div>` : `<div class="notes-preview" onclick="event.stopPropagation(); showNoteDialog('${name}')" style="background:#f8fafc;color:#64748b;">➕ إضافة ملاحظة</div>`}
+                    </div>
                 </a>
             </div>
         `;
@@ -228,8 +269,8 @@ function displayWeeklyLatecomers() {
         document.getElementById('weeklyLatecomers').innerHTML = `<div class="latecomers-box">✅ لا يوجد متأخرون هذا الأسبوع</div>`;
         return;
     }
-    let html = `<div class="latecomers-box"><h3>⏰ المتأخرون هذا الأسبوع</h3><table><thead><tr><th>الاسم</th><th>وقت الحضور</th><th>التأخير(دق)</th><th>التاريخ</th></tr></thead><tbody>`;
-    latecomers.forEach(l => { html += `<tr><td>${l.name}</td><td>${l.time}鲜<td>${l.minutes}鲜<td>${l.date}鲜</tr>`; });
+    let html = `<div class="latecomers-box"><h3>⏰ المتأخرون هذا الأسبوع</h3><table><thead><tr style="background:#f59e0b;color:white"><th>الاسم</th><th>وقت الحضور</th><th>التأخير(دق)</th><th>التاريخ</th></tr></thead><tbody>`;
+    latecomers.forEach(l => { html += `<tr><td>${l.name}</td><td>${l.time}</td><td>${l.minutes}</td><td>${l.date}</td></tr>`; });
     html += `</tbody></table></div>`;
     document.getElementById('weeklyLatecomers').innerHTML = html;
 }
@@ -315,8 +356,8 @@ async function updateMemberView() {
         <p>✈️ مسافر: ${stats.travelCount} مرة (${stats.travelRate}%)</p>
         <p>📊 إجمالي التسجيلات: ${stats.total}</p>
         ${lastLate ? `<p>⏱️ آخر تأخير: حضر الساعة ${lastLate[4]} بتاريخ ${lastLate[2]}</p>` : ''}
-        ${notes ? `<p>📝 ملاحظات: ${notes}</p>` : ''}
     `;
+    document.getElementById('notesSection').innerHTML = notes ? `<div style="background:#fefce8;padding:15px;border-radius:16px;margin-top:15px"><strong>📝 ملاحظات:</strong><br>${notes.replace(/\n/g,'<br>')}</div><button onclick="showNoteDialog('${currentMember}')" class="btn-small" style="margin-top:10px">✏️ تعديل الملاحظات</button>` : `<button onclick="showNoteDialog('${currentMember}')" class="btn-small">➕ إضافة ملاحظات</button>`;
 }
 
 function renderMonthsTabs(containerId, isMember = true) {
@@ -390,35 +431,40 @@ async function updateAdminView() {
     displayWeeklyLatecomers();
 }
 
-// ---------- جدول تعديل التسجيلات (لـ shenouda) ----------
+// ---------- جدول تعديل التسجيلات (لـ shenouda) مع إمكانية تغيير التاريخ ----------
 async function loadEditableRecords() {
     await loadDataFromSheet();
     const records = [...attendanceCache].reverse();
     if (records.length === 0) { document.getElementById('editableRecordsTable').innerHTML = '<p>لا توجد تسجيلات</p>'; return; }
-    let html = `<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#1e293b;color:white"><th>التاريخ</th><th>الوقت</th><th>العضو</th><th>الحالة</th><th>وقت الحضور</th><th>التأخير</th><th>حفظ</th><th>حذف</th></tr></thead><tbody>`;
+    let html = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#1e293b;color:white"><th>التاريخ</th><th>الوقت</th><th>العضو</th><th>الحالة</th><th>وقت الحضور</th><th>التأخير</th><th>حفظ</th><th>حذف</th></tr></thead><tbody>`;
     for (let i = 0; i < records.length; i++) {
         const r = records[i];
         html += `<tr style="border-bottom:1px solid #e2e8f0">
-            <td>${r[2]}</td><td>${r[4]}</td><td>${r[0]}</td>
-            <td><select id="stat_${i}"><option ${r[3]==='present'?'selected':''}>✅ حاضر</option><option ${r[3]==='late'?'selected':''}>⏰ متأخر</option><option ${r[3]==='absent'?'selected':''}>❌ غائب</option><option ${r[3]==='excused'?'selected':''}>📝 غائب بعذر</option><option ${r[3]==='travel'?'selected':''}>✈️ مسافر</option></select></td>
-            <td><input type="time" id="time_${i}" value="${r[4]}"></td>
-            <td><input type="number" id="late_${i}" value="${r[5]}" style="width:70px"></td>
-            <td><button onclick="updateRecord(${i})" style="background:#3b82f6;color:white;border:none;padding:4px 12px;border-radius:20px">💾 حفظ</button></td>
-            <td><button onclick="deleteRecord(${i})" style="background:#ef4444;color:white;border:none;padding:4px 12px;border-radius:20px">🗑️ حذف</button></td>
+            <td><input type="date" id="date_${i}" value="${r[2]}" style="width:110px"></td>
+            <td><input type="time" id="origTime_${i}" value="${r[4]}" style="width:90px">鲜
+            <td>${r[0]}鲜
+            <td><select id="stat_${i}"><option ${r[3]==='present'?'selected':''}>✅ حاضر</option><option ${r[3]==='late'?'selected':''}>⏰ متأخر</option><option ${r[3]==='absent'?'selected':''}>❌ غائب</option><option ${r[3]==='excused'?'selected':''}>📝 غائب بعذر</option><option ${r[3]==='travel'?'selected':''}>✈️ مسافر</option></select>鲜
+            <td><input type="time" id="time_${i}" value="${r[4]}" style="width:100px">鲜
+            <td><input type="number" id="late_${i}" value="${r[5]}" style="width:70px">鲜
+            <td><button onclick="updateRecordWithDate(${i})" style="background:#3b82f6;color:white;border:none;padding:4px 12px;border-radius:20px">💾 حفظ</button>鲜
+            <td><button onclick="deleteRecord(${i})" style="background:#ef4444;color:white;border:none;padding:4px 12px;border-radius:20px">🗑️ حذف</button>鲜
         </tr>`;
     }
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
     document.getElementById('editableRecordsTable').innerHTML = html;
 }
 
-window.updateRecord = async function(i) {
+window.updateRecordWithDate = async function(i) {
     const records = [...attendanceCache].reverse();
     const old = records[i];
+    const newDate = document.getElementById(`date_${i}`).value;
+    const newOrigTime = document.getElementById(`origTime_${i}`).value;
     const newStatus = document.getElementById(`stat_${i}`).value === '✅ حاضر' ? 'present' : document.getElementById(`stat_${i}`).value === '⏰ متأخر' ? 'late' : document.getElementById(`stat_${i}`).value === '❌ غائب' ? 'absent' : document.getElementById(`stat_${i}`).value === '📝 غائب بعذر' ? 'excused' : 'travel';
     const newTime = document.getElementById(`time_${i}`).value;
     const newLate = parseInt(document.getElementById(`late_${i}`).value) || 0;
     const idx = attendanceCache.findIndex(r => r[0] === old[0] && r[2] === old[2] && r[4] === old[4]);
     if (idx !== -1) {
+        attendanceCache[idx][2] = newDate;
         attendanceCache[idx][3] = newStatus;
         attendanceCache[idx][4] = newTime;
         attendanceCache[idx][5] = newLate;
