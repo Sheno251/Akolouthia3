@@ -11,7 +11,7 @@ const ALL_MEMBERS = [
 ];
 
 const ADMIN_ACCOUNTS = [
-    { username: "shenouda", password: "admin123" },
+    { username: "frmina", password: "admin123" },
     { username: "admin2", password: "admin123" },
     { username: "admin3", password: "admin123" }
 ];
