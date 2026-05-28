@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>أكولوثيا – نظام المتابعة</title>
     <link rel="stylesheet" href="style.css">
+    <!-- إضافات PWA (تثبيت التطبيق والأيقونة) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 <div class="container">
-    <!-- شاشة الدخول -->
     <div id="loginScreen" class="screen">
         <h1>📖 أكولوثيا – نظام المتابعة</h1>
         <div class="card">
@@ -18,15 +22,15 @@
         </div>
     </div>
 
-    <!-- شاشة الأعضاء -->
     <div id="memberScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <button id="adminPanelBtn" onclick="showAdminDashboard()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
+        <!-- منطقة الإشعارات التحذيرية للجميع -->
+        <div id="globalNotificationArea" style="display:none; margin-bottom:20px;"></div>
         <div id="memberList" class="member-grid"></div>
     </div>
 
-    <!-- لوحة العضو -->
     <div id="memberDashboard" class="screen hidden">
         <button onclick="backToMemberList()" class="btn-back">← رجوع</button>
         <button id="backToAdminBtn" onclick="backToAdminPanel()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
@@ -40,14 +44,9 @@
             <button class="status-btn travel" onclick="recordStatus('travel')">✈️ مسافر</button>
         </div>
         <div id="currentStatus" class="current-status"></div>
-        <div class="stats">
-            <h3>📊 نسبتي الشخصية</h3>
-            <div id="personalStats"></div>
-            <div id="notesSection" style="margin-top:15px;"></div>
-        </div>
+        <div class="stats"><h3>📊 نسبتي الشخصية</h3><div id="personalStats"></div></div>
     </div>
 
-    <!-- شاشة دخول الأدمن -->
     <div id="adminLoginScreen" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <h2 style="margin-top:12px">دخول الأدمن</h2>
@@ -58,7 +57,6 @@
         </div>
     </div>
 
-    <!-- لوحة تحكم الأدمن -->
     <div id="adminDashboard" class="screen hidden">
         <button onclick="backToLogin()" class="btn-back">← خروج</button>
         <h2 style="margin-top:12px">لوحة تحكم الأدمن</h2>
@@ -76,40 +74,86 @@
         <div class="date-range" id="reportDateRange">📅 جاري تحميل التاريخ...</div>
 
         <div class="months-tabs" id="adminMonthsTabs"></div>
-        
         <div class="filter-buttons">
             <button id="filterMonthly" class="active">📆 شهري</button>
             <button id="filterWeekly">📅 أسبوعي (آخر سبت)</button>
         </div>
-        
         <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:12px 0">
             <button id="downloadPDFBtn" style="background:#e53e3e;color:white;padding:8px 16px;border:none;border-radius:40px">📄 تحميل PDF</button>
             <button onclick="window.print()" style="background:#48bb78;color:white;padding:8px 16px;border:none;border-radius:40px">🖨️ طباعة</button>
             <button id="changePasswordBtn" style="background:#f59e0b;color:white;padding:8px 16px;border:none;border-radius:40px">🔑 تغيير كلمة المرور</button>
             <button id="deleteMonthBtn" style="background:#e53e3e;color:white;padding:8px 16px;border:none;border-radius:40px">🗑️ حذف الشهر الحالي</button>
+            <button id="exportExcelBtn" style="background:#10b981;color:white;padding:8px 16px;border:none;border-radius:40px">📊 تصدير Excel</button>
+        </div>
+        
+        <!-- أدوات متقدمة جديدة -->
+        <div class="settings-card">
+            <h4>🔍 بحث سريع</h4>
+            <div class="time-input">
+                <input type="text" id="searchMemberInput" placeholder="ابحث باسم العضو..." style="width:200px;">
+                <button id="searchMemberBtn" class="btn-small">🔍 بحث</button>
+                <button id="resetSearchBtn" class="btn-small" style="background:#64748b;">🗑️ إعادة ضبط</button>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h4>🖨️ طباعة تقرير عضو</h4>
+            <div class="time-input">
+                <select id="printMemberSelect" style="width:200px;">
+                    <option value="">-- اختر عضو --</option>
+                </select>
+                <button id="printMemberFromSelectBtn" class="btn-small" style="background:#8b5cf6;">🖨️ طباعة</button>
+            </div>
+            <p style="font-size:12px; color:#64748b; margin-top:8px;">* يمكنك أيضاً طباعة تقرير العضو من داخل صفحته مباشرة</p>
         </div>
         
         <div id="pdf-content">
             <div id="adminStats"></div>
             <div id="cardsContainer" class="cards-grid"></div>
         </div>
-        
         <div id="weeklyLatecomers"></div>
-        
-        <!-- قسم تعديل وحذف التسجيلات (لـ shenouda فقط) -->
-        <div id="editableRecordsSection" style="margin-top:30px; display:none;">
-            <hr style="margin:20px 0;">
-            <h3>✏️ تعديل أو حذف تسجيل فردي</h3>
-            <div id="editableRecordsTable" style="overflow-x:auto;"></div>
+
+        <div id="shenoudaSection" style="margin-top:30px; display:none; border-top:2px solid #e2e8f0; padding-top:20px;">
+            <h3>🛠️ أدوات متقدمة (لـ shenouda فقط)</h3>
+            <div class="settings-card">
+                <h4>📌 تثبيت الشهر الحالي</h4>
+                <div class="time-input">
+                    <span>الشهر المثبت:</span>
+                    <strong id="pinnedMonthDisplay">❌ لا يوجد</strong>
+                    <select id="pinMonthSelect">
+                        <option value="">-- اختر شهر --</option>
+                        <option value="0">شهر 1</option><option value="1">شهر 2</option>
+                        <option value="2">شهر 3</option><option value="3">شهر 4</option>
+                        <option value="4">شهر 5</option><option value="5">شهر 6</option>
+                        <option value="6">شهر 7</option><option value="7">شهر 8</option>
+                        <option value="8">شهر 9</option><option value="9">شهر 10</option>
+                        <option value="10">شهر 11</option><option value="11">شهر 12</option>
+                    </select>
+                    <button onclick="pinMonth()" class="btn-small">📌 تثبيت</button>
+                    <button onclick="unpinMonth()" class="btn-small">❌ إلغاء</button>
+                </div>
+            </div>
+            <div class="settings-card">
+                <h4>✏️ تعديل أو حذف التسجيلات (الأحدث أولاً)</h4>
+                <div id="editTable" style="overflow-x:auto;"></div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx7spg88GjCuFWFCH2a8BBl_1njhCjdG_W4kZ7dxjamnkDwDI_sHMamL2aDYa6DLUOP8Q/exec';
-    console.log("✅ Google Sheets API ready");
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrgTdmWiXnuOvZ_BQTTnuKGwiT6TaL-iHWOrKmiNbF8Lwr80RBnFKlpLEagtxJlpcFXg/exec';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="script.js"></script>
+
+<!-- تسجيل Service Worker لتشغيل التطبيق بدون نت -->
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('✅ Service Worker registered', reg))
+        .catch(err => console.error('❌ Service Worker error', err));
+}
+</script>
 </body>
 </html>
