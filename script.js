@@ -320,12 +320,12 @@ async function getNotesList(name, month) {
 }
 
 function canUserModifyNotes() {
-    return currentUsername === 'shenouda';
+    return currentUsername === 'frmina';
 }
 
 function showNoteDialog(name) {
     if (!canUserModifyNotes()) {
-        alert('⚠️ غير مسموح لك بإضافة ملاحظات. هذه الخاصية متاحة فقط لـ shenouda');
+        alert('⚠️ غير مسموح لك بإضافة ملاحظات. هذه الخاصية متاحة فقط لـ frmina');
         return;
     }
 
@@ -855,7 +855,7 @@ function showMemberListForAdmin() {
 // ========================================
 
 function openMemberDashboard(name) {
-    const isAdminUser = name === 'shenouda' || name === 'admin2' || name === 'admin3';
+    const isAdminUser = name === 'frmina' || name === 'admin2' || name === 'admin3';
     currentMember = name;
     currentMonth = pinnedMonth !== null ? pinnedMonth : 0;
 
@@ -1055,11 +1055,11 @@ function showAdminDashboard() {
     }
     updateAdminView();
 
-    const isShenouda = document.getElementById('adminUsername').value === 'shenouda';
+    const isfrmina = document.getElementById('adminUsername').value === 'frmina';
     const advancedSection = document.getElementById('shenoudaSection');
     if (advancedSection) {
-        advancedSection.style.display = isShenouda ? 'block' : 'none';
-        if (isShenouda) loadEditTable();
+        advancedSection.style.display = isfrmina ? 'block' : 'none';
+        if (isfrmina) loadEditTable();
     }
 }
 
