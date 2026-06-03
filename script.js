@@ -16,7 +16,7 @@ const ADMIN_ACCOUNTS = [
     { username: "admin3", password: "admin123" }
 ];
 
-const ALL_NAMES = [...ALL_MEMBERS, "shenouda", "admin2", "admin3"];
+const ALL_NAMES = [...ALL_MEMBERS, "frmina", "admin2", "admin3"];
 const MONTHS_COUNT = 12;
 const MAX_NOTE_LENGTH = 300;
 
@@ -48,10 +48,7 @@ async function loadDataFromSheet() {
         if (json.attendance) attendanceCache = json.attendance;
         dataLoaded = true;
         console.log(`✅ تم تحميل ${attendanceCache.length} سجل`);
-        
-        // تحديث الإشعار التحذيري
         updateGlobalWarningNotification();
-        
     } catch (error) {
         console.error("خطأ في تحميل البيانات:", error);
     }
@@ -230,8 +227,8 @@ async function calculateStats(name, month) {
 // ========================================
 
 function getViolatingMembers() {
-    const LATE_MINUTES_THRESHOLD = 30;  // نصف ساعة
-    const COUNT_THRESHOLD = 2;           // مرتين
+    const LATE_MINUTES_THRESHOLD = 30;
+    const COUNT_THRESHOLD = 2;
     const violatingMembers = [];
     
     for (const name of ALL_MEMBERS) {
@@ -268,7 +265,6 @@ function updateGlobalWarningNotification() {
     const notificationArea = document.getElementById('globalNotificationArea');
     if (!notificationArea) return;
     
-    // نعرض الإشعار فقط لو الشاشة الحالية هي memberScreen
     const isMemberScreen = document.getElementById('memberScreen') && !document.getElementById('memberScreen').classList.contains('hidden');
     const isAdminDashboard = document.getElementById('adminDashboard') && !document.getElementById('adminDashboard').classList.contains('hidden');
     
@@ -770,7 +766,7 @@ function displayWeeklyLatecomers() {
         `;
     });
 
-    html += `</tbody><table></div>`;
+    html += `</tbody></td></div>`;
     document.getElementById('weeklyLatecomers').innerHTML = html;
 }
 
@@ -1137,7 +1133,7 @@ function updatePinnedDisplay() {
 }
 
 // ========================================
-// جدول تعديل التسجيلات (لـ shenouda فقط)
+// جدول تعديل التسجيلات (لـ frmina فقط)
 // ========================================
 
 async function loadEditTable() {
@@ -1289,7 +1285,7 @@ function showChangePasswordDialog() {
     dialog.innerHTML = `
         <div class="dialog-content">
             <h3>🔒 تغيير كلمة المرور</h3>
-            <p style="font-size:14px; color:#64748b;">متاح فقط لـ <strong>shenouda</strong></p>
+            <p style="font-size:14px; color:#64748b;">متاح فقط لـ <strong>frmina</strong></p>
             <input type="password" id="currentPass" placeholder="كلمة المرور الحالية">
             <input type="password" id="newPass1" placeholder="كلمة المرور الجديدة">
             <input type="password" id="newPass2" placeholder="تأكيد كلمة المرور">
@@ -1305,7 +1301,7 @@ function changePassword() {
     const newPass1 = document.getElementById('newPass1').value;
     const newPass2 = document.getElementById('newPass2').value;
 
-    const adminAccount = ADMIN_ACCOUNTS.find(a => a.username === 'shenouda');
+    const adminAccount = ADMIN_ACCOUNTS.find(a => a.username === 'frmina');
     if (!adminAccount || adminAccount.password !== current) {
         alert('⚠️ كلمة المرور الحالية غير صحيحة');
         return;
