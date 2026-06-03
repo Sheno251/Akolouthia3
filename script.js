@@ -457,7 +457,7 @@ async function deleteNote(name, index) {
 }
 
 // ========================================
-// تصفية واسترجاع البيانات
+// تصفية واسترجاع 데이터
 // ========================================
 
 function getMemberRecords(name, month, filter = 'monthly') {
@@ -766,7 +766,7 @@ function displayWeeklyLatecomers() {
         `;
     });
 
-    html += `</tbody></td></div>`;
+    html += `</tbody></table></div>`;
     document.getElementById('weeklyLatecomers').innerHTML = html;
 }
 
@@ -820,6 +820,7 @@ function showMemberList() {
     });
     
     updateGlobalWarningNotification();
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 function showMemberListForAdmin() {
@@ -844,6 +845,7 @@ function showMemberListForAdmin() {
     });
     
     updateGlobalWarningNotification();
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 // ========================================
@@ -883,10 +885,12 @@ function openMemberDashboard(name) {
     }
 
     updateMemberView();
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 function backToAdminPanel() {
     showAdminDashboard();
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 // ========================================
@@ -1012,6 +1016,7 @@ function renderTabs(containerId, isMember = true) {
 function showAdminLogin() {
     document.querySelectorAll('.screen').forEach(screen => screen.classList.add('hidden'));
     document.getElementById('adminLoginScreen').classList.remove('hidden');
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 function verifyAdmin() {
@@ -1026,6 +1031,7 @@ function verifyAdmin() {
         isAdminLoggedIn = true;
         populateMemberSelect();
         showAdminDashboard();
+        updateURLForCurrentScreen(); // إضافة لتحديث الرابط
     } else {
         alert('اسم المستخدم أو كلمة السر خطأ');
     }
@@ -1057,6 +1063,8 @@ function showAdminDashboard() {
         advancedSection.style.display = isfrmina ? 'block' : 'none';
         if (isfrmina) loadEditTable();
     }
+    
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 function editMemberFromAdmin(memberName) {
@@ -1258,7 +1266,7 @@ document.addEventListener('click', (event) => {
     if (event.target.id === 'filterWeekly') {
         currentFilter = 'weekly';
         document.getElementById('filterWeekly').classList.add('active');
-        document.getElementById('filterMonthly').classList.remove('active');
+        document.getElementById('filterWeekly').classList.remove('active');
         displayWeeklyLatecomers();
         updateAdminView();
     }
@@ -1352,6 +1360,41 @@ function downloadPDF() {
 }
 
 // ========================================
+// معالجة زر الرجوع في المتصفح (Back Button)
+// ========================================
+
+function updateURLForCurrentScreen() {
+    let currentScreenId = 'loginScreen';
+    if (!document.getElementById('loginScreen').classList.contains('hidden')) currentScreenId = 'loginScreen';
+    else if (!document.getElementById('memberScreen').classList.contains('hidden')) currentScreenId = 'memberScreen';
+    else if (!document.getElementById('memberDashboard').classList.contains('hidden')) currentScreenId = 'memberDashboard';
+    else if (!document.getElementById('adminDashboard').classList.contains('hidden')) currentScreenId = 'adminDashboard';
+    else if (!document.getElementById('adminLoginScreen').classList.contains('hidden')) currentScreenId = 'adminLoginScreen';
+    
+    history.pushState({ screen: currentScreenId }, '', '#' + currentScreenId);
+}
+
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.screen) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        const targetScreen = document.getElementById(event.state.screen);
+        if (targetScreen) targetScreen.classList.remove('hidden');
+        
+        if (event.state.screen === 'memberDashboard' && currentMember) {
+            updateMemberView();
+        } else if (event.state.screen === 'adminDashboard') {
+            updateAdminView();
+        } else if (event.state.screen === 'memberScreen') {
+            if (isAdminLoggedIn) showMemberListForAdmin();
+            else showMemberList();
+        }
+    } else {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById('loginScreen').classList.remove('hidden');
+    }
+});
+
+// ========================================
 // دوال التنقل العامة
 // ========================================
 
@@ -1361,11 +1404,13 @@ function backToLogin() {
     currentUsername = null;
     currentUserRole = null;
     isAdminLoggedIn = false;
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 function backToMemberList() {
     if (isAdminLoggedIn) showMemberListForAdmin();
     else showMemberList();
+    updateURLForCurrentScreen(); // إضافة لتحديث الرابط
 }
 
 // ========================================
