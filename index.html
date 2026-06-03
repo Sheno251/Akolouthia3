@@ -8,8 +8,8 @@
     <!-- إضافات PWA (تثبيت التطبيق والأيقونة) -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 <div class="container">
@@ -26,7 +26,6 @@
         <button onclick="backToLogin()" class="btn-back">← رجوع</button>
         <button id="adminPanelBtn" onclick="showAdminDashboard()" style="display:none;" class="btn-secondary">📊 لوحة الأدمن</button>
         <h2 style="margin-top:12px">اختر اسمك</h2>
-        <!-- منطقة الإشعارات التحذيرية للجميع -->
         <div id="globalNotificationArea" style="display:none; margin-bottom:20px;"></div>
         <div id="memberList" class="member-grid"></div>
     </div>
@@ -86,7 +85,6 @@
             <button id="exportExcelBtn" style="background:#10b981;color:white;padding:8px 16px;border:none;border-radius:40px">📊 تصدير Excel</button>
         </div>
         
-        <!-- أدوات متقدمة جديدة -->
         <div class="settings-card">
             <h4>🔍 بحث سريع</h4>
             <div class="time-input">
@@ -147,7 +145,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="script.js"></script>
 
-<!-- تسجيل Service Worker لتشغيل التطبيق بدون نت -->
 <script>
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
